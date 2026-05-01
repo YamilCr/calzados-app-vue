@@ -1,0 +1,101 @@
+<script setup lang="ts">
+import { useRouter } from 'vue-router'
+import { useCartStore } from '@/stores/cart'
+import { useToast } from '@/composables/useToast'
+import type { Product } from '@/types'
+import StarRating from './StarRating.vue'
+
+const props = defineProps<{ product: Product }>()
+const router = useRouter()
+const cart = useCartStore()
+const { show } = useToast()
+
+function quickAddToCart() {
+  cart.add(
+    props.product,
+    1,
+    props.product.sizes[0],
+    props.product.colors[0],
+  )
+  show(`"${props.product.name}" added to cart`, 'success')
+}
+</script>
+
+<template>
+  <div class="group relative rounded overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
+
+    <!-- Image + overlay -->
+    <div class="relative overflow-hidden">
+      <img
+        :src="product.image"
+        :alt="product.name"
+        class="w-full h-52 object-cover group-hover:scale-105 transition-transform duration-500"
+        loading="lazy"
+      />
+
+      <!-- Hover overlay with action buttons -->
+      <div class="product-overlay rounded">
+        <div class="flex flex-col gap-2">
+          <button
+            class="bg-white/20 hover:bg-brand text-white border border-white/50 rounded px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition"
+            @click.prevent="quickAddToCart"
+          >
+            <i class="fas fa-cart-plus mr-1" /> Add to Cart
+          </button>
+          <router-link
+            :to="`/product/${product.slug}`"
+            class="bg-white/20 hover:bg-white hover:text-gray-800 text-white border border-white/50 rounded px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition text-center"
+          >
+            <i class="far fa-eye mr-1" /> View
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Discount badge -->
+      <div
+        v-if="product.originalPrice"
+        class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded"
+      >
+        -{{ Math.round((1 - product.price / product.originalPrice) * 100) }}%
+      </div>
+    </div>
+
+    <!-- Card body -->
+    <div class="p-4">
+      <router-link
+        :to="`/product/${product.slug}`"
+        class="block font-semibold text-gray-800 hover:text-brand transition mb-1 truncate"
+      >
+        {{ product.name }}
+      </router-link>
+
+      <!-- Sizes -->
+      <p class="text-xs text-gray-400 mb-2">{{ product.sizes.join(' / ') }}</p>
+
+      <!-- Color dots + stars -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex gap-1">
+          <span
+            v-for="c in product.colors.slice(0, 5)"
+            :key="c.hex"
+            :title="c.name"
+            :style="{ background: c.hex }"
+            class="w-3.5 h-3.5 rounded-full border border-gray-200 cursor-default"
+          />
+        </div>
+        <StarRating :rating="product.rating" size="sm" />
+      </div>
+
+      <!-- Price -->
+      <div class="flex items-center justify-between mt-1">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-gray-900">${{ product.price.toFixed(2) }}</span>
+          <span v-if="product.originalPrice" class="text-xs text-gray-400 line-through">
+            ${{ product.originalPrice.toFixed(2) }}
+          </span>
+        </div>
+        <span class="text-xs text-gray-400">{{ product.reviewCount }} reviews</span>
+      </div>
+    </div>
+  </div>
+</template>
