@@ -1,6 +1,6 @@
-# 🛍️ Zay Shop — Vue 3 + Tailwind eCommerce
+# 🛍️ Calzados Shop — Vue 3 + Tailwind eCommerce
 
-A full-featured eCommerce frontend built with **Vue 3**, **Pinia**, **Vue Router**, and **Tailwind CSS**. Inspired by the Zay Shop template, fully rewritten with modern tooling and a clean, scalable architecture.
+A full-featured eCommerce frontend built with **Vue 3**, **Pinia**, **Vue Router**, and **Tailwind CSS**. Inspired by the Calzados Shop template, fully rewritten with modern tooling and a clean, scalable architecture.
 
 ---
 
