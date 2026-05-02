@@ -90,21 +90,30 @@ function closeAll() {
 
           <!-- User -->
           <template v-if="auth.isAuthenticated">
-            <router-link
-              to="/orders"
-              class="relative p-2 rounded hover:bg-gray-100 transition"
-              aria-label="Orders"
-            >
-              <i class="fa fa-user text-brand" />
-            </router-link>
+            <div class="hidden sm:flex items-center gap-1">
+              <router-link
+                to="/orders"
+                class="flex items-center gap-1.5 text-sm font-medium text-brand hover:opacity-75 transition px-1"
+              >
+                <i class="fa fa-user-circle text-lg" />
+                <span class="hidden lg:inline max-w-[90px] truncate">{{ auth.userName }}</span>
+              </router-link>
+              <button
+                class="p-2 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition"
+                title="Cerrar sesión"
+                @click="auth.logout(); $router.push('/')"
+              >
+                <i class="fa fa-arrow-right-from-bracket text-sm" />
+              </button>
+            </div>
           </template>
           <template v-else>
             <router-link
-              to="/"
+              to="/login"
               class="hidden sm:flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-brand transition"
             >
               <i class="fa fa-user" />
-              <span class="hidden lg:inline">Login</span>
+              <span class="hidden lg:inline">Iniciar Sesión</span>
             </router-link>
           </template>
 
@@ -164,7 +173,24 @@ function closeAll() {
               class="block px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
               @click="mobileOpen = false"
             >
-              My Orders
+              <i class="fa fa-box mr-2 text-brand" />Mis Pedidos
+            </router-link>
+          </li>
+          <li v-if="auth.isAuthenticated">
+            <button
+              class="w-full text-left px-3 py-2 rounded text-sm font-medium text-red-500 hover:bg-red-50 transition"
+              @click="auth.logout(); mobileOpen = false; $router.push('/')"
+            >
+              <i class="fa fa-arrow-right-from-bracket mr-2" />Cerrar sesión
+            </button>
+          </li>
+          <li v-else>
+            <router-link
+              to="/login"
+              class="block px-3 py-2 rounded text-sm font-medium text-brand hover:bg-brand/10"
+              @click="mobileOpen = false"
+            >
+              <i class="fa fa-user mr-2" />Iniciar Sesión
             </router-link>
           </li>
         </ul>

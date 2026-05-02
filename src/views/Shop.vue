@@ -171,8 +171,9 @@ onMounted(fetchProducts)
         <!-- Top controls: tabs + sort -->
         <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div class="flex gap-3">
-              <!-- <button
-                v-for="tab in [{ label: 'All', value: undefined }, { label: \"Men's\", value: 'men' }, { label: \"Women's\", value: 'women' }]"
+              <button
+                v-for="tab in [
+                  { label: 'All', value: undefined },]"
                 :key="tab.label"
                 :class="[
                   'text-sm font-semibold transition pb-0.5',
@@ -183,7 +184,7 @@ onMounted(fetchProducts)
                 @click="filters.gender = tab.value; filters.page = 1"
               >
                 {{ tab.label }}
-              </button> -->
+              </button>
           </div>
           <select
             v-model="filters.sortBy"

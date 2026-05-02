@@ -12,6 +12,12 @@ const router = createRouter({
       meta: { title: 'Home' },
     },
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/Auth/Login.vue'),
+      meta: { title: 'Iniciar Sesión', guestOnly: true },
+    },
+    {
       path: '/shop',
       name: 'shop',
       component: () => import('@/views/Shop.vue'),
@@ -33,7 +39,7 @@ const router = createRouter({
       path: '/checkout',
       name: 'checkout',
       component: () => import('@/views/Checkout.vue'),
-      meta: { title: 'Checkout', requiresAuth: false }, // set true for real auth
+      meta: { title: 'Checkout', requiresAuth: true },
     },
     {
       path: '/orders',
@@ -66,11 +72,16 @@ router.beforeEach((to) => {
   // Update document title
   document.title = `${to.meta.title ?? 'Page'} | Zay Shop`
 
-  if (to.meta.requiresAuth) {
-    const auth = useAuthStore()
-    if (!auth.isAuthenticated) {
-      return { name: 'home', query: { redirect: to.fullPath } }
-    }
+  const auth = useAuthStore()
+
+  // Redirigir al inicio si ya está autenticado e intenta ir a /login
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: 'home' }
+  }
+
+  // Redirigir a /login si requiere autenticación y no está logueado
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
 })
 

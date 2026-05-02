@@ -9,6 +9,7 @@
  *   2. Set BASE_URL to your API root
  *   3. Replace mock implementations with real fetch calls
  */
+// import { supabase } from '@/lib/supabase'
 
 import type {
   ApiResponse,
@@ -28,6 +29,18 @@ import {
 // ─── Config ───────────────────────────────────────────────────────────────────
 const USE_MOCK = true // ← flip to false when backend is ready
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://api.example.com/v1'
+
+// export const getProducts = async () => {
+//   if (USE_MOCK) return MOCK_PRODUCTS
+  
+//   const { data, error } = await supabase
+//     .from('products')
+//     .select('*')
+//     .eq('active', true) // Filtros si los necesitas
+
+//   if (error) throw error
+//   return data
+// }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 async function http<T>(
@@ -253,3 +266,53 @@ export const authApi = {
     return res.data
   },
 }
+
+// // ─── Auth Supabase ─────────────────────────────────────────────────────────────────────
+// export const authApi = {
+//   async login(email: string, password: string): Promise<{ user: User; token: string }> {
+//     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+//     if (error) throw new Error(error.message)
+//     return {
+//       user: {
+//         id: parseInt(data.user.id),
+//         name: data.user.user_metadata?.name ?? email.split('@')[0],
+//         email: data.user.email!,
+//         avatar: data.user.user_metadata?.avatar_url,
+//       },
+//       token: data.session.access_token,
+//     }
+//   },
+
+//   async register(name: string, email: string, password: string): Promise<{ user: User; token: string }> {
+//     const { data, error } = await supabase.auth.signUp({
+//       email,
+//       password,
+//       options: { data: { name } },
+//     })
+//     if (error) throw new Error(error.message)
+//     if (!data.session) throw new Error('Revisá tu email para confirmar la cuenta')
+//     return {
+//       user: {
+//         id: parseInt(data.user!.id),
+//         name,
+//         email: data.user!.email!,
+//       },
+//       token: data.session.access_token,
+//     }
+//   },
+
+//   async logout(): Promise<void> {
+//     await supabase.auth.signOut()
+//   },
+
+//   async me(): Promise<User> {
+//     const { data, error } = await supabase.auth.getUser()
+//     if (error || !data.user) throw new Error('No autenticado')
+//     return {
+//       id: parseInt(data.user.id),
+//       name: data.user.user_metadata?.name ?? data.user.email!.split('@')[0],
+//       email: data.user.email!,
+//       avatar: data.user.user_metadata?.avatar_url,
+//     }
+//   },
+// }
