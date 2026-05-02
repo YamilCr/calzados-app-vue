@@ -60,6 +60,12 @@ const router = createRouter({
       meta: { title: 'Contact' },
     },
     {
+      path: '/admin/products',
+      name: 'admin-products',
+      component: () => import('@/views/Admin/Products.vue'),
+      meta: { title: 'Admin – Productos', requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFound.vue'),
