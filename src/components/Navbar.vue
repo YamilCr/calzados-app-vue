@@ -17,6 +17,7 @@ const navLinks = [
   { label: 'Shop', to: '/shop' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
+  { label: 'Admin', to: '/admin/products' },
 ]
 
 const isActive = computed(() => (path: string) => {

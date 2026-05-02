@@ -26,6 +26,19 @@ import {
   MOCK_USER,
 } from '@/data/mock'
 
+// Helper para obtener la lista viva de productos (desde el store si ya fue creado)
+function getLiveProducts(): Product[] {
+  try {
+    // Importación dinámica para evitar dependencia circular en el arranque
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useProductsStore } = require('@/stores/products')
+    const store = useProductsStore()
+    return store.products
+  } catch {
+    return MOCK_PRODUCTS
+  }
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 const USE_MOCK = true // ← flip to false when backend is ready
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://api.example.com/v1'
@@ -81,7 +94,7 @@ export const productApi = {
   ): Promise<PaginatedResponse<Product>> {
     if (USE_MOCK) {
       await delay()
-      let items = [...MOCK_PRODUCTS]
+      let items = [...getLiveProducts()]
 
       if (filters.category)
         items = items.filter((p) => p.category === filters.category)
@@ -143,7 +156,7 @@ export const productApi = {
   async getBySlug(slug: string): Promise<Product> {
     if (USE_MOCK) {
       await delay()
-      const p = MOCK_PRODUCTS.find((p) => p.slug === slug)
+      const p = getLiveProducts().find((p) => p.slug === slug)
       if (!p) throw new Error('Product not found')
       return p
     }
@@ -154,7 +167,7 @@ export const productApi = {
   async getFeatured(): Promise<Product[]> {
     if (USE_MOCK) {
       await delay(200)
-      return MOCK_PRODUCTS.filter((p) => p.featured)
+      return getLiveProducts().filter((p) => p.featured)
     }
     const res = await http<Product[]>('/products/featured')
     return res.data
