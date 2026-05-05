@@ -1,331 +1,428 @@
 /**
- * API Client
+ * API Client — integrado con el backend real
  *
- * Centralised HTTP layer. All network calls go through here.
- * Toggle `USE_MOCK` to switch between real API and local mock data.
+ * BASE_URL apunta a tu Express API (variable de entorno VITE_API_URL).
+ * Todos los endpoints reflejan exactamente las rutas del backend:
+ *   POST   /v1/auth/register
+ *   POST   /v1/auth/login
+ *   GET    /v1/auth/me
+ *   POST   /v1/auth/logout
  *
- * To integrate a real backend:
- *   1. Set USE_MOCK = false
- *   2. Set BASE_URL to your API root
- *   3. Replace mock implementations with real fetch calls
+ *   GET    /v1/products              ?categoria, subcategoria, search, sortBy,
+ *                                     minPrice, maxPrice, destacados, page, perPage
+ *   GET    /v1/products/destacados
+ *   GET    /v1/products/:id
+ *   GET    /v1/products/codigo/:codigo
+ *   POST   /v1/products              [admin]
+ *   PATCH  /v1/products/:id          [admin]
+ *   DELETE /v1/products/:id          [admin] soft-delete
+ *   DELETE /v1/products/:id/hard     [admin] borrado físico
+ *
+ *   GET    /v1/catalog/categorias
+ *   GET    /v1/catalog/categorias/:id
+ *   POST   /v1/catalog/categorias    [admin]
+ *   PATCH  /v1/catalog/categorias/:id [admin]
+ *   DELETE /v1/catalog/categorias/:id [admin]
+ *
+ *   GET    /v1/catalog/subcategorias  ?categoria_id=uuid
+ *   GET    /v1/catalog/subcategorias/:id
+ *   POST   /v1/catalog/subcategorias  [admin]
+ *   PATCH  /v1/catalog/subcategorias/:id [admin]
+ *   DELETE /v1/catalog/subcategorias/:id [admin]
+ *
+ *   GET    /v1/catalog/colores
+ *   POST   /v1/catalog/colores        [admin]
+ *   PATCH  /v1/catalog/colores/:id    [admin]
+ *   DELETE /v1/catalog/colores/:id    [admin]
  */
-// import { supabase } from '@/lib/supabase'
-
-import type {
-  ApiResponse,
-  PaginatedResponse,
-  Product,
-  ProductFilters,
-  Order,
-  ShippingAddress,
-  User,
-} from '@/types'
-import {
-  MOCK_PRODUCTS,
-  MOCK_ORDERS,
-  MOCK_USER,
-} from '@/data/mock'
-
-// Helper para obtener la lista viva de productos (desde el store si ya fue creado)
-function getLiveProducts(): Product[] {
-  try {
-    // Importación dinámica para evitar dependencia circular en el arranque
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { useProductsStore } = require('@/stores/products')
-    const store = useProductsStore()
-    return store.products
-  } catch {
-    return MOCK_PRODUCTS
-  }
-}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const USE_MOCK = true // ← flip to false when backend is ready
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://api.example.com/v1'
+const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000')
 
-// export const getProducts = async () => {
-//   if (USE_MOCK) return MOCK_PRODUCTS
-  
-//   const { data, error } = await supabase
-//     .from('products')
-//     .select('*')
-//     .eq('active', true) // Filtros si los necesitas
+// ─── Tipos locales ────────────────────────────────────────────────────────────
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+}
 
-//   if (error) throw error
-//   return data
-// }
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  perPage: number
+  totalPages: number
+}
+
+/** Shape que devuelve el backend (ProductoApi del backend) */
+export interface Product {
+  id: string
+  codigo: string
+  name: string
+  price: number
+  originalPrice?: number
+  image: string
+  images: string[]
+  category: string
+  subcategory: string
+  sizes: string[]
+  colors: Array<{ name: string; hex: string }>
+  description: string
+  featured: boolean
+  inStock: boolean
+  slug: string
+  /** rating y reviewCount no existen en el backend; se dejan opcionales para compatibilidad */
+  rating?: number
+  reviewCount?: number
+  tags?: string[]
+  gender?: string
+}
+
+export interface ProductFilters {
+  categoria?: string      // nombre de categoría
+  subcategoria?: string   // nombre de subcategoría
+  search?: string
+  sortBy?: 'precio_asc' | 'precio_desc' | 'nombre_asc' | 'destacado' | 'featured' | 'price_asc' | 'price_desc' | 'name_asc' | 'rating'
+  minPrice?: number
+  maxPrice?: number
+  page?: number
+  perPage?: number
+}
+
+/** Payload para crear / actualizar un producto */
+export interface ProductPayload {
+  codigo: string
+  nombre: string
+  descripcion?: string
+  precio: number
+  precio_anterior?: number | null
+  subcategoria_id?: string | null
+  activo?: boolean
+  destacado?: boolean
+  imagenesUrls?: string[]
+  talles?: string[]
+  variantes?: Array<{ talle?: string; color_id?: string }>
+}
+
+export interface User {
+  id: string
+  name: string
+  email: string
+  role?: string
+}
+
+export interface Categoria {
+  id: string
+  nombre: string
+  created_at?: string
+  subcategorias?: Subcategoria[]
+}
+
+export interface Subcategoria {
+  id: string
+  nombre: string
+  categoria_id: string
+  categoria?: Categoria
+  created_at?: string
+}
+
+export interface Color {
+  id: string
+  nombre: string
+  codigo_hex?: string | null
+  created_at?: string
+}
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 async function http<T>(
   endpoint: string,
   options: RequestInit = {},
-): Promise<ApiResponse<T>> {
+): Promise<T> {
   const token = localStorage.getItem('auth_token')
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
+    ...(options.headers ?? {}),
   }
 
   const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message ?? 'Unknown API error')
+    const err = await res.json().catch(() => ({ message: res.statusText }))
+    throw new Error(err.message ?? `HTTP ${res.status}`)
   }
 
-  return res.json()
+  return res.json() as Promise<T>
 }
 
-// ─── Mock delay helper ────────────────────────────────────────────────────────
-function delay(ms = 300): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms))
+// ─── Normalizar sortBy frontend → backend ─────────────────────────────────────
+function normalizeSortBy(
+  sortBy?: ProductFilters['sortBy'],
+): 'precio_asc' | 'precio_desc' | 'nombre_asc' | 'destacado' | undefined {
+  switch (sortBy) {
+    case 'price_asc':
+    case 'precio_asc':
+      return 'precio_asc'
+    case 'price_desc':
+    case 'precio_desc':
+      return 'precio_desc'
+    case 'name_asc':
+    case 'nombre_asc':
+      return 'nombre_asc'
+    case 'featured':
+    case 'destacado':
+    case 'rating': // no existe en el backend; cae a destacado
+      return 'destacado'
+    default:
+      return undefined
+  }
 }
 
-function ok<T>(data: T): ApiResponse<T> {
-  return { data, success: true }
-}
-
-// ─── Products ─────────────────────────────────────────────────────────────────
+// ─── Products API ─────────────────────────────────────────────────────────────
 export const productApi = {
-  async list(
-    filters: ProductFilters = {},
-  ): Promise<PaginatedResponse<Product>> {
-    if (USE_MOCK) {
-      await delay()
-      let items = [...getLiveProducts()]
 
-      if (filters.category)
-        items = items.filter((p) => p.category === filters.category)
-      if (filters.gender)
-        items = items.filter((p) => p.gender === filters.gender || p.gender === 'unisex')
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        items = items.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.tags.some((t) => t.includes(q)),
-        )
-      }
-      if (filters.minPrice !== undefined)
-        items = items.filter((p) => p.price >= filters.minPrice!)
-      if (filters.maxPrice !== undefined)
-        items = items.filter((p) => p.price <= filters.maxPrice!)
-
-      // Sorting
-      switch (filters.sortBy) {
-        case 'price_asc':
-          items.sort((a, b) => a.price - b.price)
-          break
-        case 'price_desc':
-          items.sort((a, b) => b.price - a.price)
-          break
-        case 'name_asc':
-          items.sort((a, b) => a.name.localeCompare(b.name))
-          break
-        case 'rating':
-          items.sort((a, b) => b.rating - a.rating)
-          break
-        default:
-          items.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0))
-      }
-
-      const page = filters.page ?? 1
-      const perPage = filters.perPage ?? 9
-      const start = (page - 1) * perPage
-      const paginated = items.slice(start, start + perPage)
-
-      return {
-        data: paginated,
-        total: items.length,
-        page,
-        perPage,
-        totalPages: Math.ceil(items.length / perPage),
-      }
-    }
-
+  /** GET /v1/products */
+  async list(filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> {
     const params = new URLSearchParams()
-    Object.entries(filters).forEach(([k, v]) => {
-      if (v !== undefined) params.set(k, String(v))
-    })
-    const res = await http<PaginatedResponse<Product>>(`/products?${params}`)
-    return res.data
-  },
 
-  async getBySlug(slug: string): Promise<Product> {
-    if (USE_MOCK) {
-      await delay()
-      const p = getLiveProducts().find((p) => p.slug === slug)
-      if (!p) throw new Error('Product not found')
-      return p
+    if (filters.categoria)    params.set('categoria',    filters.categoria)
+    if (filters.subcategoria) params.set('subcategoria', filters.subcategoria)
+    if (filters.search)       params.set('search',       filters.search)
+    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice))
+    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
+    if (filters.page)         params.set('page',    String(filters.page))
+    if (filters.perPage)      params.set('perPage', String(filters.perPage))
+
+    const sortBy = normalizeSortBy(filters.sortBy)
+    if (sortBy) params.set('sortBy', sortBy)
+
+    const res = await http<ApiResponse<never> & PaginatedResponse<Product>>(
+      `/products?${params}`,
+    )
+    // El backend devuelve { success, data, total, page, perPage, totalPages }
+    return {
+      data:       res.data,
+      total:      res.total,
+      page:       res.page,
+      perPage:    res.perPage,
+      totalPages: res.totalPages,
     }
-    const res = await http<Product>(`/products/${slug}`)
-    return res.data
   },
 
+  /** GET /v1/products/destacados */
   async getFeatured(): Promise<Product[]> {
-    if (USE_MOCK) {
-      await delay(200)
-      return getLiveProducts().filter((p) => p.featured)
-    }
-    const res = await http<Product[]>('/products/featured')
-    return res.data
-  },
-}
-
-// ─── Orders ───────────────────────────────────────────────────────────────────
-export const orderApi = {
-  async list(): Promise<Order[]> {
-    if (USE_MOCK) {
-      await delay()
-      return MOCK_ORDERS
-    }
-    const res = await http<Order[]>('/orders')
+    const res = await http<ApiResponse<Product[]>>('/products/destacados')
     return res.data
   },
 
-  async getById(id: string): Promise<Order> {
-    if (USE_MOCK) {
-      await delay()
-      const o = MOCK_ORDERS.find((o) => o.id === id)
-      if (!o) throw new Error('Order not found')
-      return o
-    }
-    const res = await http<Order>(`/orders/${id}`)
+  /** GET /v1/products/:id */
+  async getById(id: string): Promise<Product> {
+    const res = await http<ApiResponse<Product>>(`/products/${id}`)
     return res.data
   },
 
-  async create(payload: {
-    items: Array<{ productId: number; quantity: number; size: string; color: string }>
-    shippingAddress: ShippingAddress
-  }): Promise<Order> {
-    if (USE_MOCK) {
-      await delay(600)
-      const newOrder: Order = {
-        id: `ORD-${Date.now()}`,
-        items: payload.items.map((i) => {
-          const product = MOCK_PRODUCTS.find((p) => p.id === i.productId)!
-          return {
-            product,
-            quantity: i.quantity,
-            selectedSize: i.size,
-            selectedColor: product.colors[0],
-          }
-        }),
-        total: payload.items.reduce((sum, i) => {
-          const p = MOCK_PRODUCTS.find((p) => p.id === i.productId)!
-          return sum + p.price * i.quantity
-        }, 0),
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        shippingAddress: payload.shippingAddress,
-      }
-      return newOrder
+  /** GET /v1/products/codigo/:codigo */
+  async getByCodigo(codigo: string): Promise<Product> {
+    const res = await http<ApiResponse<Product>>(`/products/codigo/${codigo}`)
+    return res.data
+  },
+
+  /**
+   * getBySlug — el backend no tiene slug real; el slug se genera como
+   * `{nombre}-{codigo}` en el mapper del backend. Lo resolvemos listando
+   * y buscando localmente, o bien usando el código que viaja en el slug.
+   *
+   * Estrategia: el slug tiene formato "<nombre-slugificado>-<codigo>".
+   * Extraemos el código (último segmento separado por guión) y usamos
+   * GET /products/codigo/:codigo.
+   */
+  async getBySlug(slug: string): Promise<Product> {
+    // Intentar extraer el código del slug (último token)
+    const parts = slug.split('-')
+    const posibleCodigo = parts[parts.length - 1]
+    try {
+      return await productApi.getByCodigo(posibleCodigo.toUpperCase())
+    } catch {
+      // Fallback: buscar en el listado completo comparando slug generado
+      const res = await productApi.list({ perPage: 50 })
+      const found = res.data.find((p) => p.slug === slug)
+      if (!found) throw new Error('Producto no encontrado')
+      return found
     }
-    const res = await http<Order>('/orders', {
+  },
+
+  /** POST /v1/products  [admin] */
+  async create(payload: ProductPayload): Promise<Product> {
+    const res = await http<ApiResponse<Product>>('/products', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
     return res.data
   },
+
+  /** PATCH /v1/products/:id  [admin] */
+  async update(id: string, payload: Partial<ProductPayload>): Promise<Product> {
+    const res = await http<ApiResponse<Product>>(`/products/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return res.data
+  },
+
+  /** DELETE /v1/products/:id  [admin] — soft delete (activo = false) */
+  async remove(id: string): Promise<void> {
+    await http<ApiResponse<null>>(`/products/${id}`, { method: 'DELETE' })
+  },
+
+  /** DELETE /v1/products/:id/hard  [admin] — borrado físico */
+  async hardDelete(id: string): Promise<void> {
+    await http<ApiResponse<null>>(`/products/${id}/hard`, { method: 'DELETE' })
+  },
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// ─── Auth API ─────────────────────────────────────────────────────────────────
 export const authApi = {
+
+  /** POST /v1/auth/login */
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
-    if (USE_MOCK) {
-      await delay(500)
-      if (email === 'demo@example.com' && password === 'demo1234') {
-        const token = 'mock_jwt_token_' + Date.now()
-        return { user: MOCK_USER, token }
-      }
-      throw new Error('Invalid credentials. Use demo@example.com / demo1234')
-    }
-    const res = await http<{ user: User; token: string }>('/auth/login', {
+    const res = await http<ApiResponse<{ user: User; token: string }>>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
     return res.data
   },
 
+  /** POST /v1/auth/register */
   async register(name: string, email: string, password: string): Promise<{ user: User; token: string }> {
-    if (USE_MOCK) {
-      await delay(500)
-      const token = 'mock_jwt_token_' + Date.now()
-      return { user: { ...MOCK_USER, name, email }, token }
-    }
-    const res = await http<{ user: User; token: string }>('/auth/register', {
+    const res = await http<ApiResponse<{ user: User; token: string }>>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ name, email, password }),
     })
     return res.data
   },
 
-  async logout(): Promise<void> {
-    if (USE_MOCK) {
-      await delay(100)
-      return
-    }
-    await http('/auth/logout', { method: 'POST' })
+  /** GET /v1/auth/me */
+  async me(): Promise<User> {
+    const res = await http<ApiResponse<User>>('/auth/me')
+    return res.data
   },
 
-  async me(): Promise<User> {
-    if (USE_MOCK) {
-      await delay()
-      return MOCK_USER
-    }
-    const res = await http<User>('/auth/me')
-    return res.data
+  /** POST /v1/auth/logout */
+  async logout(): Promise<void> {
+    await http<ApiResponse<null>>('/auth/logout', { method: 'POST' })
   },
 }
 
-// // ─── Auth Supabase ─────────────────────────────────────────────────────────────────────
-// export const authApi = {
-//   async login(email: string, password: string): Promise<{ user: User; token: string }> {
-//     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-//     if (error) throw new Error(error.message)
-//     return {
-//       user: {
-//         id: parseInt(data.user.id),
-//         name: data.user.user_metadata?.name ?? email.split('@')[0],
-//         email: data.user.email!,
-//         avatar: data.user.user_metadata?.avatar_url,
-//       },
-//       token: data.session.access_token,
-//     }
-//   },
+// ─── Catalog API ──────────────────────────────────────────────────────────────
+export const catalogApi = {
 
-//   async register(name: string, email: string, password: string): Promise<{ user: User; token: string }> {
-//     const { data, error } = await supabase.auth.signUp({
-//       email,
-//       password,
-//       options: { data: { name } },
-//     })
-//     if (error) throw new Error(error.message)
-//     if (!data.session) throw new Error('Revisá tu email para confirmar la cuenta')
-//     return {
-//       user: {
-//         id: parseInt(data.user!.id),
-//         name,
-//         email: data.user!.email!,
-//       },
-//       token: data.session.access_token,
-//     }
-//   },
+  // ── Categorías ──────────────────────────────────────────────────────────────
 
-//   async logout(): Promise<void> {
-//     await supabase.auth.signOut()
-//   },
+  /** GET /v1/catalog/categorias */
+  async listCategorias(): Promise<Categoria[]> {
+    const res = await http<ApiResponse<Categoria[]>>('/catalog/categorias')
+    return res.data
+  },
 
-//   async me(): Promise<User> {
-//     const { data, error } = await supabase.auth.getUser()
-//     if (error || !data.user) throw new Error('No autenticado')
-//     return {
-//       id: parseInt(data.user.id),
-//       name: data.user.user_metadata?.name ?? data.user.email!.split('@')[0],
-//       email: data.user.email!,
-//       avatar: data.user.user_metadata?.avatar_url,
-//     }
-//   },
-// }
+  /** GET /v1/catalog/categorias/:id */
+  async getCategoriaById(id: string): Promise<Categoria> {
+    const res = await http<ApiResponse<Categoria>>(`/catalog/categorias/${id}`)
+    return res.data
+  },
+
+  /** POST /v1/catalog/categorias  [admin] */
+  async createCategoria(nombre: string): Promise<Categoria> {
+    const res = await http<ApiResponse<Categoria>>('/catalog/categorias', {
+      method: 'POST',
+      body: JSON.stringify({ nombre }),
+    })
+    return res.data
+  },
+
+  /** PATCH /v1/catalog/categorias/:id  [admin] */
+  async updateCategoria(id: string, nombre: string): Promise<Categoria> {
+    const res = await http<ApiResponse<Categoria>>(`/catalog/categorias/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ nombre }),
+    })
+    return res.data
+  },
+
+  /** DELETE /v1/catalog/categorias/:id  [admin] */
+  async deleteCategoria(id: string): Promise<void> {
+    await http<ApiResponse<null>>(`/catalog/categorias/${id}`, { method: 'DELETE' })
+  },
+
+  // ── Subcategorías ────────────────────────────────────────────────────────────
+
+  /** GET /v1/catalog/subcategorias?categoria_id=uuid */
+  async listSubcategorias(categoriaId?: string): Promise<Subcategoria[]> {
+    const params = categoriaId ? `?categoria_id=${categoriaId}` : ''
+    const res = await http<ApiResponse<Subcategoria[]>>(`/catalog/subcategorias${params}`)
+    return res.data
+  },
+
+  /** GET /v1/catalog/subcategorias/:id */
+  async getSubcategoriaById(id: string): Promise<Subcategoria> {
+    const res = await http<ApiResponse<Subcategoria>>(`/catalog/subcategorias/${id}`)
+    return res.data
+  },
+
+  /** POST /v1/catalog/subcategorias  [admin] */
+  async createSubcategoria(nombre: string, categoriaId: string): Promise<Subcategoria> {
+    const res = await http<ApiResponse<Subcategoria>>('/catalog/subcategorias', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, categoria_id: categoriaId }),
+    })
+    return res.data
+  },
+
+  /** PATCH /v1/catalog/subcategorias/:id  [admin] */
+  async updateSubcategoria(
+    id: string,
+    payload: { nombre?: string; categoria_id?: string },
+  ): Promise<Subcategoria> {
+    const res = await http<ApiResponse<Subcategoria>>(`/catalog/subcategorias/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return res.data
+  },
+
+  /** DELETE /v1/catalog/subcategorias/:id  [admin] */
+  async deleteSubcategoria(id: string): Promise<void> {
+    await http<ApiResponse<null>>(`/catalog/subcategorias/${id}`, { method: 'DELETE' })
+  },
+
+  // ── Colores ──────────────────────────────────────────────────────────────────
+
+  /** GET /v1/catalog/colores */
+  async listColores(): Promise<Color[]> {
+    const res = await http<ApiResponse<Color[]>>('/catalog/colores')
+    return res.data
+  },
+
+  /** POST /v1/catalog/colores  [admin] */
+  async createColor(nombre: string, codigo_hex?: string): Promise<Color> {
+    const res = await http<ApiResponse<Color>>('/catalog/colores', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, codigo_hex }),
+    })
+    return res.data
+  },
+
+  /** PATCH /v1/catalog/colores/:id  [admin] */
+  async updateColor(id: string, payload: { nombre?: string; codigo_hex?: string }): Promise<Color> {
+    const res = await http<ApiResponse<Color>>(`/catalog/colores/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    return res.data
+  },
+
+  /** DELETE /v1/catalog/colores/:id  [admin] */
+  async deleteColor(id: string): Promise<void> {
+    await http<ApiResponse<null>>(`/catalog/colores/${id}`, { method: 'DELETE' })
+  },
+}

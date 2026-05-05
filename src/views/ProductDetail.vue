@@ -1,49 +1,88 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useToast } from '@/composables/useToast'
 import { productApi } from '@/api/client'
 import StarRating from '@/components/StarRating.vue'
 import ProductCard from '@/components/ProductCard.vue'
-import type { Product, ColorDot } from '@/types'
+import type { Product } from '@/api/client'
 
 const route = useRoute()
-const cart = useCartStore()
+const cart  = useCartStore()
 const { show } = useToast()
 
-const product = ref<Product | null>(null)
-const related = ref<Product[]>([])
-const loading = ref(true)
-const error = ref(false)
+const product      = ref<Product | null>(null)
+const related      = ref<Product[]>([])
+const loading      = ref(true)
+const error        = ref(false)
 
 const selectedImage = ref(0)
-const selectedSize = ref('')
-const selectedColor = ref<ColorDot | null>(null)
-const quantity = ref(1)
-const addedToCart = ref(false)
+const selectedSize  = ref('')
+const selectedColor = ref<{ name: string; hex: string } | null>(null)
+const quantity      = ref(1)
+const addedToCart   = ref(false)
 
-onMounted(async () => {
+async function loadProduct(slug: string) {
+  loading.value = true
+  error.value   = false
+  product.value = null
+  related.value = []
+
   try {
-    const slug = route.params.slug as string
+    // getBySlug extrae el código del slug y usa GET /products/codigo/:codigo
     product.value = await productApi.getBySlug(slug)
-    selectedSize.value = product.value.sizes[0]
-    selectedColor.value = product.value.colors[0]
 
-    const res = await productApi.list({ category: product.value.category, perPage: 4 })
+    // Pre-seleccionar primer talle y color disponibles
+    selectedSize.value  = product.value.sizes[0]   ?? ''
+    selectedColor.value = product.value.colors[0]  ?? null
+    selectedImage.value = 0
+
+    // Productos relacionados: misma categoría, excluyendo el actual
+    const res = await productApi.list({
+      categoria: product.value.category,
+      perPage:   4,
+    })
     related.value = res.data.filter((p) => p.id !== product.value!.id).slice(0, 3)
   } catch {
     error.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => loadProduct(route.params.slug as string))
+
+// Recargar si navegamos entre productos relacionados
+watch(
+  () => route.params.slug,
+  (slug) => { if (slug) loadProduct(slug as string) },
+)
 
 function addToCart() {
-  if (!product.value || !selectedColor.value || !selectedSize.value) return
-  cart.add(product.value, quantity.value, selectedSize.value, selectedColor.value)
+  if (!product.value) return
+
+  // El cart store espera un objeto compatible; lo mapeamos
+  const productForCart = {
+    ...product.value,
+    // Alias para compatibilidad con el store existente
+    id:    product.value.id as unknown as number,
+    rating:      product.value.rating      ?? 0,
+    reviewCount: product.value.reviewCount ?? 0,
+    tags:        product.value.tags        ?? [],
+    gender:      product.value.gender      ?? 'unisex',
+    featured:    product.value.featured,
+    inStock:     product.value.inStock,
+  }
+
+  cart.add(
+    productForCart as Parameters<typeof cart.add>[0],
+    quantity.value,
+    selectedSize.value,
+    selectedColor.value ?? { name: '', hex: '#000000' },
+  )
   addedToCart.value = true
-  show(`"${product.value.name}" added to cart!`, 'success')
+  show(`"${product.value.name}" agregado al carrito!`, 'success')
   setTimeout(() => (addedToCart.value = false), 2000)
 }
 </script>
@@ -53,14 +92,14 @@ function addToCart() {
 
     <!-- Breadcrumb -->
     <nav class="text-sm text-gray-400 mb-6 flex items-center gap-2">
-      <router-link to="/" class="hover:text-brand transition">Home</router-link>
+      <router-link to="/" class="hover:text-brand transition">Inicio</router-link>
       <i class="fa fa-chevron-right text-xs" />
-      <router-link to="/shop" class="hover:text-brand transition">Shop</router-link>
+      <router-link to="/shop" class="hover:text-brand transition">Tienda</router-link>
       <i class="fa fa-chevron-right text-xs" />
-      <span class="text-gray-600">{{ product?.name ?? '...' }}</span>
+      <span class="text-gray-600">{{ product?.name ?? '…' }}</span>
     </nav>
 
-    <!-- Loading skeleton -->
+    <!-- Skeleton -->
     <div v-if="loading" class="grid md:grid-cols-2 gap-12 animate-pulse">
       <div class="space-y-3">
         <div class="bg-gray-200 rounded-lg aspect-square" />
@@ -78,45 +117,57 @@ function addToCart() {
 
     <!-- Error -->
     <div v-else-if="error" class="text-center py-20 text-gray-400">
-      <i class="fa fa-triangle-exclamation text-5xl mb-4 text-red-300" />
-      <p class="text-lg font-medium">Product not found</p>
-      <router-link to="/shop" class="btn-primary mt-4 text-sm">Back to Shop</router-link>
+      <i class="fa fa-triangle-exclamation text-5xl mb-4 text-red-300 block" />
+      <p class="text-lg font-medium">Producto no encontrado</p>
+      <router-link to="/shop" class="btn-primary mt-4 text-sm">Volver a la tienda</router-link>
     </div>
 
-    <!-- Product detail -->
+    <!-- Detalle del producto -->
     <div v-else-if="product" class="grid md:grid-cols-2 gap-12">
 
-      <!-- Image gallery -->
+      <!-- Galería -->
       <div>
         <div class="rounded-lg overflow-hidden bg-gray-100 mb-3">
           <img
-            :src="product.images[selectedImage]"
+            :src="product.images[selectedImage] || product.image"
             :alt="product.name"
             class="w-full aspect-square object-cover"
           />
         </div>
-        <div class="grid grid-cols-4 gap-2">
+        <div v-if="product.images.length > 1" class="grid grid-cols-4 gap-2">
           <button
             v-for="(img, i) in product.images"
             :key="i"
             :class="['rounded overflow-hidden border-2 transition', i === selectedImage ? 'border-brand' : 'border-transparent']"
             @click="selectedImage = i"
           >
-            <img :src="img" :alt="`view ${i + 1}`" class="w-full aspect-square object-cover" />
+            <img :src="img" :alt="`vista ${i + 1}`" class="w-full aspect-square object-cover" />
           </button>
         </div>
       </div>
 
-      <!-- Product info -->
+      <!-- Info -->
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
+        <!-- Código badge -->
+        <span class="inline-block mb-2 font-mono text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+          {{ product.codigo }}
+        </span>
 
-        <div class="flex items-center gap-3 mb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{{ product.name }}</h1>
+
+        <!-- Categoría / subcategoría -->
+        <p class="text-sm text-gray-400 mb-4">
+          {{ product.category }}
+          <span v-if="product.subcategory"> / {{ product.subcategory }}</span>
+        </p>
+
+        <!-- Rating (si existe) -->
+        <div v-if="product.rating" class="flex items-center gap-3 mb-4">
           <StarRating :rating="product.rating" size="md" />
-          <span class="text-sm text-gray-500">{{ product.reviewCount }} reviews</span>
+          <span class="text-sm text-gray-500">{{ product.reviewCount }} reseñas</span>
         </div>
 
-        <!-- Price -->
+        <!-- Precio -->
         <div class="flex items-baseline gap-3 mb-5">
           <span class="text-3xl font-bold text-gray-900">${{ product.price.toFixed(2) }}</span>
           <span v-if="product.originalPrice" class="text-lg text-gray-400 line-through">
@@ -126,17 +177,32 @@ function addToCart() {
             v-if="product.originalPrice"
             class="text-sm font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded"
           >
-            Save {{ Math.round((1 - product.price / product.originalPrice) * 100) }}%
+            Ahorrás {{ Math.round((1 - product.price / product.originalPrice) * 100) }}%
           </span>
         </div>
 
-        <!-- Description -->
-        <p class="text-gray-600 leading-relaxed mb-6">{{ product.description }}</p>
+        <!-- Descripción -->
+        <p v-if="product.description" class="text-gray-600 leading-relaxed mb-6">
+          {{ product.description }}
+        </p>
 
-        <!-- Size selector -->
+        <!-- Estado de stock -->
         <div class="mb-5">
+          <span
+            :class="[
+              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium',
+              product.inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600',
+            ]"
+          >
+            <i :class="['fa text-xs', product.inStock ? 'fa-circle-check' : 'fa-circle-xmark']" />
+            {{ product.inStock ? 'En stock' : 'Sin stock' }}
+          </span>
+        </div>
+
+        <!-- Talles -->
+        <div v-if="product.sizes.length > 0" class="mb-5">
           <p class="text-sm font-semibold text-gray-700 mb-2">
-            Size: <span class="text-brand">{{ selectedSize }}</span>
+            Talle: <span class="text-brand">{{ selectedSize }}</span>
           </p>
           <div class="flex flex-wrap gap-2">
             <button
@@ -155,8 +221,8 @@ function addToCart() {
           </div>
         </div>
 
-        <!-- Color selector -->
-        <div class="mb-6">
+        <!-- Colores -->
+        <div v-if="product.colors.length > 0" class="mb-6">
           <p class="text-sm font-semibold text-gray-700 mb-2">
             Color: <span class="text-brand">{{ selectedColor?.name }}</span>
           </p>
@@ -175,7 +241,7 @@ function addToCart() {
           </div>
         </div>
 
-        <!-- Quantity + Add to Cart -->
+        <!-- Cantidad + Agregar al carrito -->
         <div class="flex items-center gap-4">
           <div class="flex items-center border border-gray-300 rounded overflow-hidden">
             <button
@@ -194,11 +260,16 @@ function addToCart() {
           </div>
 
           <button
-            :class="['btn-primary flex-1 py-3 text-base transition', addedToCart ? 'bg-green-600' : '']"
+            :class="[
+              'btn-primary flex-1 py-3 text-base transition',
+              addedToCart ? 'bg-green-600' : '',
+              !product.inStock ? 'opacity-50 cursor-not-allowed' : '',
+            ]"
+            :disabled="!product.inStock"
             @click="addToCart"
           >
             <i :class="['fa mr-2', addedToCart ? 'fa-check' : 'fa-cart-plus']" />
-            {{ addedToCart ? 'Added!' : 'Add to Cart' }}
+            {{ addedToCart ? '¡Agregado!' : product.inStock ? 'Agregar al carrito' : 'Sin stock' }}
           </button>
 
           <router-link to="/cart" class="btn-outline py-3 px-4">
@@ -207,7 +278,7 @@ function addToCart() {
         </div>
 
         <!-- Tags -->
-        <div class="mt-6 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+        <div v-if="product.tags && product.tags.length > 0" class="mt-6 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
           <span
             v-for="tag in product.tags"
             :key="tag"
@@ -219,9 +290,9 @@ function addToCart() {
       </div>
     </div>
 
-    <!-- Related products -->
+    <!-- Productos relacionados -->
     <div v-if="related.length > 0" class="mt-16">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6">You Might Also Like</h2>
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">También te puede interesar</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         <ProductCard v-for="p in related" :key="p.id" :product="p" />
       </div>

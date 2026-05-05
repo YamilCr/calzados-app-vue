@@ -2,16 +2,27 @@
 import { ref, onMounted } from 'vue'
 import HeroCarousel from '@/components/HeroCarousel.vue'
 import ProductCard from '@/components/ProductCard.vue'
-import { productApi } from '@/api/client'
-import { MOCK_CATEGORIES } from '@/data/mock'
-import type { Product } from '@/types'
+import { productApi, catalogApi } from '@/api/client'
+import type { Product, Categoria } from '@/api/client'
 
-const featured = ref<Product[]>([])
-const loading = ref(true)
+const featured   = ref<Product[]>([])
+const categorias = ref<Categoria[]>([])
+const loading    = ref(true)
 
 onMounted(async () => {
-  featured.value = await productApi.getFeatured()
-  loading.value = false
+  try {
+    const [feat, cats] = await Promise.all([
+      productApi.getFeatured(),
+      catalogApi.listCategorias(),
+    ])
+    featured.value   = feat
+    // Mostrar solo las primeras 3 categorías que tengan nombre
+    categorias.value = cats.slice(0, 3)
+  } catch (e) {
+    console.error('Error cargando home:', e)
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -27,25 +38,39 @@ onMounted(async () => {
         Explore our most popular product categories. Something for every style and occasion.
       </p>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+
+    <!-- Skeleton categorías -->
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+      <div v-for="n in 3" :key="n" class="flex flex-col items-center gap-3 animate-pulse">
+        <div class="w-40 h-40 rounded-full bg-gray-200" />
+        <div class="h-4 bg-gray-200 rounded w-24" />
+        <div class="h-8 bg-gray-200 rounded w-20" />
+      </div>
+    </div>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-8">
       <div
-        v-for="cat in MOCK_CATEGORIES"
+        v-for="cat in categorias"
         :key="cat.id"
         class="flex flex-col items-center text-center group"
       >
         <router-link
-          :to="{ path: '/shop', query: { category: cat.id } }"
+          :to="{ path: '/shop', query: { categoria: cat.nombre } }"
           class="block"
         >
-          <img
-            :src="cat.image"
-            :alt="cat.name"
-            class="w-40 h-40 rounded-full object-cover border-4 border-gray-200 group-hover:border-brand transition-all duration-300 shadow"
-          />
+          <!--
+            El backend no almacena imagen de categoría actualmente.
+            Se muestra un ícono placeholder. Si en el futuro se agrega
+            una columna `imagen` a la tabla categorias, reemplazar con:
+            <img :src="cat.imagen" ... />
+          -->
+          <div class="w-40 h-40 rounded-full bg-brand/10 border-4 border-gray-200 group-hover:border-brand transition-all duration-300 shadow flex items-center justify-center">
+            <i class="fa fa-tag text-brand text-4xl" />
+          </div>
         </router-link>
-        <h3 class="mt-4 font-semibold text-lg text-gray-800">{{ cat.name }}</h3>
+        <h3 class="mt-4 font-semibold text-lg text-gray-800">{{ cat.nombre }}</h3>
         <router-link
-          :to="{ path: '/shop', query: { category: cat.id } }"
+          :to="{ path: '/shop', query: { categoria: cat.nombre } }"
           class="btn-primary mt-3 text-sm px-6 py-2"
         >
           Go Shop
@@ -64,13 +89,9 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Skeleton loader -->
+      <!-- Skeleton productos -->
       <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <div
-          v-for="n in 3"
-          :key="n"
-          class="bg-white rounded shadow-sm animate-pulse"
-        >
+        <div v-for="n in 3" :key="n" class="bg-white rounded shadow-sm animate-pulse">
           <div class="h-52 bg-gray-200 rounded-t" />
           <div class="p-4 space-y-2">
             <div class="h-4 bg-gray-200 rounded w-3/4" />
@@ -78,6 +99,11 @@ onMounted(async () => {
             <div class="h-4 bg-gray-200 rounded w-1/4" />
           </div>
         </div>
+      </div>
+
+      <div v-else-if="featured.length === 0" class="text-center py-16 text-gray-400">
+        <i class="fa fa-box-open text-5xl mb-4 block" />
+        <p>No hay productos destacados por el momento.</p>
       </div>
 
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
@@ -92,15 +118,18 @@ onMounted(async () => {
     </div>
   </section>
 
-  <!-- Why Choose Us banner -->
+  <!-- Why Choose Us -->
   <section class="max-w-7xl mx-auto px-4 py-14">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-      <div v-for="item in [
-        { icon: 'fa-truck', title: 'Free Shipping', sub: 'On orders over $500' },
-        { icon: 'fa-rotate-left', title: 'Easy Returns', sub: '30-day return policy' },
-        { icon: 'fa-lock', title: 'Secure Payment', sub: '100% secure checkout' },
-        { icon: 'fa-headset', title: '24/7 Support', sub: 'Here when you need us' },
-      ]" :key="item.title">
+      <div
+        v-for="item in [
+          { icon: 'fa-truck',        title: 'Free Shipping',   sub: 'On orders over $500' },
+          { icon: 'fa-rotate-left',  title: 'Easy Returns',    sub: '30-day return policy' },
+          { icon: 'fa-lock',         title: 'Secure Payment',  sub: '100% secure checkout' },
+          { icon: 'fa-headset',      title: '24/7 Support',    sub: 'Here when you need us' },
+        ]"
+        :key="item.title"
+      >
         <div class="flex flex-col items-center gap-3">
           <div class="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center">
             <i :class="['fa', item.icon, 'text-brand text-xl']" />

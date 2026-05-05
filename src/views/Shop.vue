@@ -1,76 +1,105 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProductCard from '@/components/ProductCard.vue'
-import { productApi } from '@/api/client'
-import type { Product, ProductFilters } from '@/types'
+import { productApi, catalogApi } from '@/api/client'
+import type { Product, ProductFilters, Categoria } from '@/api/client'
 
-const route = useRoute()
+const route  = useRoute()
 const router = useRouter()
 
 // ─── State ────────────────────────────────────────────────────────────────────
-const products = ref<Product[]>([])
+const products      = ref<Product[]>([])
 const totalProducts = ref(0)
-const totalPages = ref(1)
-const loading = ref(true)
+const totalPages    = ref(1)
+const loading       = ref(true)
+const categorias    = ref<Categoria[]>([])
 
+// El backend filtra por nombre de categoría/subcategoría (string), no por UUID
 const filters = ref<ProductFilters>({
-  category: (route.query.category as string) || undefined,
-  gender: (route.query.gender as string) || undefined,
-  search: (route.query.search as string) || undefined,
-  sortBy: (route.query.sortBy as ProductFilters['sortBy']) || 'featured',
-  page: 1,
-  perPage: 9,
+  categoria:    (route.query.categoria  as string) || undefined,
+  subcategoria: (route.query.subcategoria as string) || undefined,
+  search:       (route.query.search     as string) || undefined,
+  sortBy:       (route.query.sortBy     as ProductFilters['sortBy']) || 'destacado',
+  page:         1,
+  perPage:      9,
 })
 
-const sidebarOpen = ref(false) // mobile
+const sidebarOpen = ref(false)
 
-// ─── Categories sidebar data ──────────────────────────────────────────────────
-const categoryGroups = [
-  { label: 'Category', key: 'category', options: [
-    { value: 'shoes', label: 'Shoes' },
-    { value: 'watches', label: 'Watches' },
-    { value: 'accessories', label: 'Accessories' },
-    { value: 'clothing', label: 'Clothing' },
-  ]},
-  { label: 'Gender', key: 'gender', options: [
-    { value: 'men', label: 'Men' },
-    { value: 'women', label: 'Women' },
-    { value: 'unisex', label: 'Unisex' },
-  ]},
-]
-
+// ─── Opciones de ordenamiento ─────────────────────────────────────────────────
 const sortOptions: Array<{ value: ProductFilters['sortBy']; label: string }> = [
-  { value: 'featured', label: 'Featured' },
-  { value: 'price_asc', label: 'Price: Low to High' },
-  { value: 'price_desc', label: 'Price: High to Low' },
-  { value: 'name_asc', label: 'Name: A to Z' },
-  { value: 'rating', label: 'Best Rating' },
+  { value: 'destacado',   label: 'Destacados' },
+  { value: 'precio_asc',  label: 'Precio: menor a mayor' },
+  { value: 'precio_desc', label: 'Precio: mayor a menor' },
+  { value: 'nombre_asc',  label: 'Nombre: A–Z' },
 ]
+
+// ─── Sidebar: categorías y subcategorías dinámicas ────────────────────────────
+const sidebarGroups = computed(() =>
+  categorias.value.map((cat) => ({
+    label: cat.nombre,
+    key:   'categoria' as const,
+    value: cat.nombre,
+    subs:  (cat.subcategorias ?? []).map((s) => ({
+      label: s.nombre,
+      key:   'subcategoria' as const,
+      value: s.nombre,
+    })),
+  })),
+)
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchProducts() {
   loading.value = true
   try {
     const res = await productApi.list(filters.value)
-    products.value = res.data
+    products.value      = res.data
     totalProducts.value = res.total
-    totalPages.value = res.totalPages
+    totalPages.value    = res.totalPages
+  } catch (e) {
+    console.error('Error al cargar productos:', e)
   } finally {
     loading.value = false
   }
 }
 
-function applyFilter(key: string, value: string) {
-  const current = (filters.value as Record<string, unknown>)[key]
-  ;(filters.value as Record<string, unknown>)[key] = current === value ? undefined : value
+async function fetchCatalog() {
+  try {
+    categorias.value = await catalogApi.listCategorias()
+  } catch (e) {
+    console.error('Error al cargar catálogo:', e)
+  }
+}
+
+function applyCategoria(catNombre: string) {
+  if (filters.value.categoria === catNombre) {
+    filters.value.categoria    = undefined
+    filters.value.subcategoria = undefined
+  } else {
+    filters.value.categoria    = catNombre
+    filters.value.subcategoria = undefined
+  }
+  filters.value.page = 1
+}
+
+function applySubcategoria(subNombre: string) {
+  if (filters.value.subcategoria === subNombre) {
+    filters.value.subcategoria = undefined
+  } else {
+    filters.value.subcategoria = subNombre
+  }
   filters.value.page = 1
 }
 
 function clearFilters() {
-  filters.value = { sortBy: 'featured', page: 1, perPage: 9 }
+  filters.value = { sortBy: 'destacado', page: 1, perPage: 9 }
   router.replace({ query: {} })
 }
+
+const hasActiveFilters = computed(() =>
+  !!(filters.value.categoria || filters.value.subcategoria || filters.value.search),
+)
 
 watch(
   filters,
@@ -85,7 +114,10 @@ watch(
   { deep: true },
 )
 
-onMounted(fetchProducts)
+onMounted(() => {
+  fetchCatalog()
+  fetchProducts()
+})
 </script>
 
 <template>
@@ -94,16 +126,20 @@ onMounted(fetchProducts)
     <!-- Header row -->
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-gray-800">
-        Shop
+        Tienda
         <span v-if="filters.search" class="text-base font-normal text-gray-500">
-          — results for "{{ filters.search }}"
+          — resultados para "{{ filters.search }}"
+        </span>
+        <span v-else-if="filters.categoria" class="text-base font-normal text-gray-500">
+          — {{ filters.categoria }}
+          <span v-if="filters.subcategoria"> / {{ filters.subcategoria }}</span>
         </span>
       </h1>
       <button
         class="lg:hidden btn-ghost border border-gray-200 text-sm"
         @click="sidebarOpen = !sidebarOpen"
       >
-        <i class="fa fa-sliders mr-1" /> Filters
+        <i class="fa fa-sliders mr-1" /> Filtros
       </button>
     </div>
 
@@ -117,44 +153,54 @@ onMounted(fetchProducts)
           'lg:static fixed inset-y-0 left-0 z-40 bg-white lg:bg-transparent shadow-xl lg:shadow-none p-6 lg:p-0 overflow-y-auto',
         ]"
       >
-        <!-- Mobile close -->
-        <button
-          class="lg:hidden mb-4 text-gray-400 hover:text-gray-700"
-          @click="sidebarOpen = false"
-        >
-          <i class="fa fa-xmark" /> Close
+        <button class="lg:hidden mb-4 text-gray-400 hover:text-gray-700" @click="sidebarOpen = false">
+          <i class="fa fa-xmark" /> Cerrar
         </button>
 
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Filters</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Filtros</h2>
 
-        <div v-for="group in categoryGroups" :key="group.key" class="mb-6">
-          <h3 class="font-semibold text-gray-700 mb-2 flex items-center justify-between">
+        <!-- Categorías dinámicas -->
+        <div v-for="group in sidebarGroups" :key="group.value" class="mb-5">
+          <!-- Categoría principal -->
+          <button
+            :class="[
+              'w-full text-left px-2 py-1.5 rounded font-semibold text-sm transition mb-1',
+              filters.categoria === group.value
+                ? 'bg-brand text-white'
+                : 'text-gray-700 hover:bg-gray-100',
+            ]"
+            @click="applyCategoria(group.value)"
+          >
             {{ group.label }}
-            <i class="fa fa-chevron-down text-xs text-gray-400" />
-          </h3>
-          <ul class="space-y-1">
-            <li v-for="opt in group.options" :key="opt.value">
+          </button>
+
+          <!-- Subcategorías -->
+          <ul
+            v-if="filters.categoria === group.value && group.subs.length > 0"
+            class="ml-3 space-y-0.5"
+          >
+            <li v-for="sub in group.subs" :key="sub.value">
               <button
                 :class="[
                   'w-full text-left px-2 py-1 rounded text-sm transition',
-                  (filters as Record<string, unknown>)[group.key] === opt.value
-                    ? 'bg-brand text-white font-medium'
-                    : 'text-gray-600 hover:bg-gray-100',
+                  filters.subcategoria === sub.value
+                    ? 'bg-brand/20 text-brand font-medium'
+                    : 'text-gray-600 hover:bg-gray-50',
                 ]"
-                @click="applyFilter(group.key, opt.value)"
+                @click="applySubcategoria(sub.value)"
               >
-                {{ opt.label }}
+                {{ sub.label }}
               </button>
             </li>
           </ul>
         </div>
 
         <button
-          v-if="filters.category || filters.gender || filters.search"
+          v-if="hasActiveFilters"
           class="text-xs text-red-500 hover:text-red-700 mt-2"
           @click="clearFilters"
         >
-          <i class="fa fa-xmark mr-1" /> Clear all filters
+          <i class="fa fa-xmark mr-1" /> Limpiar filtros
         </button>
       </aside>
 
@@ -168,28 +214,9 @@ onMounted(fetchProducts)
       <!-- ── Product grid ─────────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0">
 
-        <!-- Top controls: tabs + sort -->
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div class="flex gap-3">
-              <button
-                v-for="tab in [
-                  { label: 'All', value: undefined },]"
-                :key="tab.label"
-                :class="[
-                  'text-sm font-semibold transition pb-0.5',
-                  filters.gender === tab.value
-                    ? 'text-brand border-b-2 border-brand'
-                    : 'text-gray-600 hover:text-brand',
-                ]"
-                @click="filters.gender = tab.value; filters.page = 1"
-              >
-                {{ tab.label }}
-              </button>
-          </div>
-          <select
-            v-model="filters.sortBy"
-            class="input w-48 text-sm"
-          >
+        <!-- Sort -->
+        <div class="flex flex-wrap items-center justify-end gap-3 mb-6">
+          <select v-model="filters.sortBy" class="input w-52 text-sm" @change="filters.page = 1">
             <option v-for="o in sortOptions" :key="o.value" :value="o.value">
               {{ o.label }}
             </option>
@@ -198,7 +225,7 @@ onMounted(fetchProducts)
 
         <!-- Results count -->
         <p class="text-xs text-gray-400 mb-4">
-          {{ totalProducts }} product{{ totalProducts !== 1 ? 's' : '' }} found
+          {{ totalProducts }} producto{{ totalProducts !== 1 ? 's' : '' }} encontrado{{ totalProducts !== 1 ? 's' : '' }}
         </p>
 
         <!-- Skeleton -->
@@ -213,13 +240,10 @@ onMounted(fetchProducts)
         </div>
 
         <!-- Empty state -->
-        <div
-          v-else-if="products.length === 0"
-          class="text-center py-20 text-gray-400"
-        >
-          <i class="fa fa-box-open text-5xl mb-4" />
-          <p class="text-lg font-medium">No products found</p>
-          <button class="btn-outline mt-4 text-sm" @click="clearFilters">Clear filters</button>
+        <div v-else-if="products.length === 0" class="text-center py-20 text-gray-400">
+          <i class="fa fa-box-open text-5xl mb-4 block" />
+          <p class="text-lg font-medium">No se encontraron productos</p>
+          <button class="btn-outline mt-4 text-sm" @click="clearFilters">Limpiar filtros</button>
         </div>
 
         <!-- Grid -->
