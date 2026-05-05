@@ -82,7 +82,35 @@ async function loadAll() {
 }
 onMounted(loadAll)
 
-// ─── Upload de imagen ─────────────────────────────────────────────────────────
+// ─── Upload de imagen (base reutilizable) ─────────────────────────────────────
+async function uploadImageFile(file: File, onProgress?: (p: number) => void): Promise<string> {
+  const formData = new FormData()
+  formData.append('imagen', file)
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${BASE_URL}/upload/imagen`)
+
+    const token = localStorage.getItem('auth_token')
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100))
+    })
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve(JSON.parse(xhr.responseText).url)
+      } else {
+        reject(new Error(JSON.parse(xhr.responseText).message ?? 'Error al subir imagen'))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Error de red'))
+    xhr.send(formData)
+  })
+}
+
+// ─── Upload imagen principal ──────────────────────────────────────────────────
 const uploading       = ref(false)
 const uploadProgress  = ref(0)
 const imageFile       = ref<File | null>(null)
@@ -98,41 +126,68 @@ function onFileChange(e: Event) {
 async function uploadImage(file: File): Promise<string> {
   uploading.value      = true
   uploadProgress.value = 0
-
-  const formData = new FormData()
-  formData.append('imagen', file)
-
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${BASE_URL}/upload/imagen`)
-
-    const token = localStorage.getItem('auth_token')
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) uploadProgress.value = Math.round((e.loaded / e.total) * 100)
-    })
-
-    xhr.onload = () => {
-      uploading.value = false
-      if (xhr.status === 200) {
-        const res = JSON.parse(xhr.responseText)
-        resolve(res.url)
-      } else {
-        const res = JSON.parse(xhr.responseText)
-        reject(new Error(res.message ?? 'Error al subir imagen'))
-      }
-    }
-    xhr.onerror = () => { uploading.value = false; reject(new Error('Error de red')) }
-    xhr.send(formData)
-  })
+  try {
+    return await uploadImageFile(file, (p) => { uploadProgress.value = p })
+  } finally {
+    uploading.value = false
+  }
 }
 
 function clearImage() {
-  imageFile.value      = null
-  imagePreview.value   = ''
+  imageFile.value        = null
+  imagePreview.value     = ''
   fImagenPrincipal.value = ''
-  uploadProgress.value = 0
+  uploadProgress.value   = 0
+}
+
+// ─── Imágenes adicionales ─────────────────────────────────────────────────────
+const MAX_EXTRA = 5
+
+interface ExtraImage {
+  file: File | null
+  preview: string
+  url: string
+  uploading: boolean
+  progress: number
+}
+
+function makeEmptySlot(): ExtraImage {
+  return { file: null, preview: '', url: '', uploading: false, progress: 0 }
+}
+
+const extraImages = ref<ExtraImage[]>([makeEmptySlot()])
+
+function onExtraFileChange(e: Event, idx: number) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  extraImages.value[idx].file    = file
+  extraImages.value[idx].preview = URL.createObjectURL(file)
+  extraImages.value[idx].url     = ''
+
+  // Agregar slot vacío si el usuario llenó el último
+  if (idx === extraImages.value.length - 1 && extraImages.value.length < MAX_EXTRA) {
+    extraImages.value.push(makeEmptySlot())
+  }
+}
+
+function clearExtraImage(idx: number) {
+  extraImages.value.splice(idx, 1)
+  if (extraImages.value.length === 0) extraImages.value.push(makeEmptySlot())
+}
+
+async function uploadExtraImages(): Promise<void> {
+  for (const slot of extraImages.value) {
+    if (!slot.file || !slot.preview) continue
+    slot.uploading = true
+    slot.progress  = 0
+    try {
+      slot.url       = await uploadImageFile(slot.file, (p) => { slot.progress = p })
+      slot.uploading = false
+    } catch (e) {
+      slot.uploading = false
+      throw e
+    }
+  }
 }
 
 // ─── Formulario ───────────────────────────────────────────────────────────────
@@ -155,8 +210,7 @@ const fActivo          = ref(true)
 const fDestacado       = ref(false)
 const fTalles          = ref('')
 const fColorIds        = ref<string[]>([])
-const fImagenPrincipal = ref('')   // URL final tras upload
-const fImagenesUrls    = ref('')   // imágenes adicionales (una por línea)
+const fImagenPrincipal = ref('')
 
 const formErrors = ref<Record<string, string>>({})
 
@@ -169,10 +223,10 @@ function validate(): boolean {
 }
 
 function buildPayload(): ProductPayload {
-  const talles = fTalles.value.split(',').map((s) => s.trim()).filter(Boolean)
-  const adicionales = fImagenesUrls.value.split('\n').map((s) => s.trim()).filter(Boolean)
+  const talles       = fTalles.value.split(',').map((s) => s.trim()).filter(Boolean)
+  const adicionales  = extraImages.value.map((s) => s.url).filter(Boolean)
   const todasImagenes = [...(fImagenPrincipal.value ? [fImagenPrincipal.value] : []), ...adicionales]
-  const variantes = fColorIds.value.map((color_id) => ({ color_id }))
+  const variantes    = fColorIds.value.map((color_id) => ({ color_id }))
 
   return {
     codigo:          fCodigo.value.trim().toUpperCase(),
@@ -194,8 +248,9 @@ function resetForm() {
   fPrecioAnterior.value = undefined; fDescripcion.value = ''
   fSubcategoriaId.value = ''; fActivo.value = true; fDestacado.value = false
   fTalles.value = ''; fColorIds.value = []
-  fImagenPrincipal.value = ''; fImagenesUrls.value = ''
+  fImagenPrincipal.value = ''
   imageFile.value = null; imagePreview.value = ''; uploadProgress.value = 0
+  extraImages.value = [makeEmptySlot()]
   formErrors.value = {}
 }
 
@@ -216,11 +271,21 @@ function openEdit(product: Product) {
   fActivo.value          = product.inStock
   fDestacado.value       = product.featured
   fImagenPrincipal.value = product.image
-  imagePreview.value     = product.image   // mostrar la imagen actual como preview
-  imageFile.value        = null            // sin archivo nuevo
-  fImagenesUrls.value    = product.images.slice(1).join('\n')
-  fTalles.value          = product.sizes.join(', ')
-  fColorIds.value        = product.colors
+  imagePreview.value     = product.image
+  imageFile.value        = null
+  uploadProgress.value   = 0
+
+  // Poblar slots de imágenes adicionales con las URLs existentes
+  const urlsAdicionales = product.images.slice(1)
+  extraImages.value = urlsAdicionales.length
+    ? [
+        ...urlsAdicionales.map((u) => ({ file: null, preview: u, url: u, uploading: false, progress: 0 })),
+        ...(urlsAdicionales.length < MAX_EXTRA ? [makeEmptySlot()] : []),
+      ]
+    : [makeEmptySlot()]
+
+  fTalles.value   = product.sizes.join(', ')
+  fColorIds.value = product.colors
     .map((c) => colores.value.find((col) => col.nombre === c.name)?.id ?? '')
     .filter(Boolean)
   formErrors.value = {}
@@ -229,14 +294,19 @@ function openEdit(product: Product) {
 
 function closeModal() { modalOpen.value = false }
 
+const isUploading = computed(() =>
+  uploading.value || extraImages.value.some((s) => s.uploading)
+)
+
 async function saveProduct() {
   if (!validate()) return
   saving.value = true
   try {
-    // Si hay un archivo nuevo, subirlo primero y obtener la URL
     if (imageFile.value) {
       fImagenPrincipal.value = await uploadImage(imageFile.value)
     }
+
+    await uploadExtraImages()
 
     const payload = buildPayload()
 
@@ -422,21 +492,17 @@ function toggleColor(id: string) {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Imagen principal</label>
 
-                <!-- Zona de click / drop -->
                 <label
                   class="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
                   :class="imagePreview ? 'border-brand/40 bg-brand/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'"
                 >
-                  <!-- Preview -->
                   <img v-if="imagePreview" :src="imagePreview" alt="preview" class="absolute inset-0 w-full h-full object-contain p-2" />
 
-                  <!-- Overlay hover para cambiar -->
                   <div v-if="imagePreview" class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-2">
                     <i class="fa fa-camera text-white text-2xl" />
                     <span class="text-white text-sm font-medium">Cambiar imagen</span>
                   </div>
 
-                  <!-- Placeholder -->
                   <div v-if="!imagePreview" class="flex flex-col items-center gap-2 text-gray-400 pointer-events-none">
                     <i class="fa fa-cloud-arrow-up text-4xl" />
                     <span class="text-sm">Hacé click para subir una imagen</span>
@@ -446,7 +512,7 @@ function toggleColor(id: string) {
                   <input type="file" accept="image/*" class="hidden" @change="onFileChange" />
                 </label>
 
-                <!-- Barra de progreso -->
+                <!-- Barra de progreso imagen principal -->
                 <div v-if="uploading" class="mt-2">
                   <div class="flex justify-between text-xs text-gray-500 mb-1">
                     <span>Subiendo…</span><span>{{ uploadProgress }}%</span>
@@ -456,7 +522,6 @@ function toggleColor(id: string) {
                   </div>
                 </div>
 
-                <!-- Quitar imagen -->
                 <button v-if="imagePreview && !uploading" type="button" class="mt-2 text-xs text-red-500 hover:text-red-700 flex items-center gap-1" @click="clearImage">
                   <i class="fa fa-xmark" /> Quitar imagen
                 </button>
@@ -464,10 +529,53 @@ function toggleColor(id: string) {
 
               <!-- ── Imágenes adicionales ──────────────────────────────── -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Imágenes adicionales <span class="text-gray-400 font-normal">(una URL por línea)</span>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Imágenes adicionales
+                  <span class="text-gray-400 font-normal">(hasta {{ MAX_EXTRA }})</span>
                 </label>
-                <textarea v-model="fImagenesUrls" class="input resize-none" rows="3" placeholder="https://imagen2.com&#10;https://imagen3.com" />
+
+                <div class="grid grid-cols-3 gap-3">
+                  <div v-for="(slot, idx) in extraImages" :key="idx" class="relative">
+
+                    <!-- Zona de upload -->
+                    <label
+                      class="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
+                      :class="slot.preview ? 'border-brand/40 bg-brand/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'"
+                    >
+                      <img v-if="slot.preview" :src="slot.preview" alt="preview" class="absolute inset-0 w-full h-full object-contain p-1.5" />
+
+                      <div v-if="slot.preview" class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
+                        <i class="fa fa-camera text-white text-xl" />
+                        <span class="text-white text-xs font-medium">Cambiar</span>
+                      </div>
+
+                      <div v-if="!slot.preview" class="flex flex-col items-center gap-1.5 text-gray-400 pointer-events-none">
+                        <i class="fa fa-plus text-2xl" />
+                        <span class="text-xs">Agregar foto</span>
+                      </div>
+
+                      <input type="file" accept="image/*" class="hidden" @change="onExtraFileChange($event, idx)" />
+                    </label>
+
+                    <!-- Barra de progreso por slot -->
+                    <div v-if="slot.uploading" class="mt-1">
+                      <div class="w-full bg-gray-200 rounded-full h-1">
+                        <div class="bg-brand h-1 rounded-full transition-all" :style="{ width: slot.progress + '%' }" />
+                      </div>
+                    </div>
+
+                    <!-- Quitar imagen (X en esquina) -->
+                    <button
+                      v-if="slot.preview && !slot.uploading"
+                      type="button"
+                      class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-sm z-10"
+                      @click.prevent="clearExtraImage(idx)"
+                    >
+                      <i class="fa fa-xmark text-[10px]" />
+                    </button>
+
+                  </div>
+                </div>
               </div>
 
               <!-- ── Nombre ────────────────────────────────────────────── -->
@@ -557,9 +665,9 @@ function toggleColor(id: string) {
             <!-- Footer -->
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button class="btn-ghost" @click="closeModal">Cancelar</button>
-              <button class="btn-primary" :disabled="saving || uploading" @click="saveProduct">
-                <i :class="['fa mr-1.5', (saving||uploading)?'fa-spinner fa-spin':isEditing?'fa-floppy-disk':'fa-plus']" />
-                {{ uploading ? 'Subiendo imagen…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
+              <button class="btn-primary" :disabled="saving || isUploading" @click="saveProduct">
+                <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']" />
+                {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
               </button>
             </div>
           </div>

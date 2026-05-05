@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { orderApi } from '@/api/client'
+// import { orderApi } from '@/api/client'
 import type { Order } from '@/types'
 
 const orders = ref<Order[]>([])

@@ -1,8 +1,25 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import CartItemComponent from '@/components/CartItem.vue'
+import { getWhatsappOrderUrl } from '@/composables/useWhatsappOrder'
 
 const cart = useCartStore()
+
+const whatsappPhone = import.meta.env.VITE_WHATSAPP_PHONE
+const siteUrl = import.meta.env.VITE_SITE_URL ?? window.location.origin
+
+const whatsappUrl = computed(() =>
+  getWhatsappOrderUrl({
+    phone: whatsappPhone,
+    items: cart.items,
+    shipping: cart.shipping,
+    total: cart.total,
+    productUrl: (item) => `${siteUrl}/product/${item.product.id}`,
+  })
+)
+
+// const cart = useCartStore()
 </script>
 
 <template>
@@ -75,9 +92,17 @@ const cart = useCartStore()
             </div>
           </div>
 
-          <router-link to="/checkout" class="btn-primary w-full mt-6 py-3 text-base">
+          <!-- <router-link to="/checkout" class="btn-primary w-full mt-6 py-3 text-base">
             Proceed to Checkout <i class="fa fa-arrow-right ml-2" />
-          </router-link>
+          </router-link> -->
+            <a
+              :href="whatsappUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-primary w-full mt-6 py-3 text-base text-center block"
+            >
+              Enviar pedido por WhatsApp <i class="fab fa-whatsapp ml-2" />
+            </a>
 
           <!-- Accepted payments -->
           <div class="flex justify-center gap-3 mt-4 text-gray-300">
