@@ -30,12 +30,12 @@ onMounted(async () => {
   <!-- Hero Carousel -->
   <HeroCarousel />
 
-  <!-- Categories of the Month -->
+  <!-- Categorías del mes -->
   <section class="max-w-7xl mx-auto px-4 py-14">
     <div class="text-center mb-10">
-      <h2 class="text-3xl font-bold text-gray-800">Categories of The Month</h2>
+      <h2 class="text-3xl font-bold text-gray-800">Categorías del Mes</h2>
       <p class="text-gray-500 mt-2 max-w-lg mx-auto">
-        Explore our most popular product categories. Something for every style and occasion.
+        Explorá nuestras categorías más populares. Algo para cada estilo y ocasión.
       </p>
     </div>
 
@@ -73,19 +73,19 @@ onMounted(async () => {
           :to="{ path: '/shop', query: { categoria: cat.nombre } }"
           class="btn-primary mt-3 text-sm px-6 py-2"
         >
-          Go Shop
+          Ver categoría
         </router-link>
       </div>
     </div>
   </section>
 
-  <!-- Featured Products -->
+  <!-- Productos destacados -->
   <section class="bg-gray-50 py-14">
     <div class="max-w-7xl mx-auto px-4">
       <div class="text-center mb-10">
-        <h2 class="text-3xl font-bold text-gray-800">Featured Products</h2>
+        <h2 class="text-3xl font-bold text-gray-800">Productos Destacados</h2>
         <p class="text-gray-500 mt-2 max-w-lg mx-auto">
-          Hand-picked highlights from our latest collection.
+          Lo mejor de nuestra última colección, seleccionado especialmente para vos.
         </p>
       </div>
 
@@ -112,21 +112,21 @@ onMounted(async () => {
 
       <div class="text-center mt-10">
         <router-link to="/shop" class="btn-outline text-base px-8 py-3">
-          View All Products <i class="fa fa-arrow-right ml-2" />
+          Ver todos los productos <i class="fa fa-arrow-right ml-2" />
         </router-link>
       </div>
     </div>
   </section>
 
-  <!-- Why Choose Us -->
+  <!-- Por qué elegirnos -->
   <section class="max-w-7xl mx-auto px-4 py-14">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
       <div
         v-for="item in [
-          { icon: 'fa-truck',        title: 'Free Shipping',   sub: 'On orders over $500' },
-          { icon: 'fa-rotate-left',  title: 'Easy Returns',    sub: '30-day return policy' },
-          { icon: 'fa-lock',         title: 'Secure Payment',  sub: '100% secure checkout' },
-          { icon: 'fa-headset',      title: '24/7 Support',    sub: 'Here when you need us' },
+          { icon: 'fa-truck',        title: 'Envío gratis',       sub: 'En compras mayores a $500' },
+          { icon: 'fa-rotate-left',  title: 'Devoluciones fáciles', sub: 'Hasta 30 días después de la compra' },
+          { icon: 'fa-lock',         title: 'Pago seguro',         sub: 'Checkout 100% seguro' },
+          { icon: 'fa-headset',      title: 'Soporte 24/7',        sub: 'Siempre disponibles para ayudarte' },
         ]"
         :key="item.title"
       >

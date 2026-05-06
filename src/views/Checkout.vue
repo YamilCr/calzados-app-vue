@@ -39,10 +39,10 @@ async function placeOrder() {
       shippingAddress: { ...address },
     })
     cart.clear()
-    show('Order placed successfully!', 'success')
+    show('¡Pedido realizado con éxito!', 'success')
     router.push('/orders')
   } catch {
-    show('Failed to place order. Please try again.', 'error')
+    show('No se pudo realizar el pedido. Intentá de nuevo.', 'error')
   } finally {
     submitting.value = false
   }
@@ -51,24 +51,24 @@ async function placeOrder() {
 
 <template>
   <div class="max-w-5xl mx-auto px-4 py-10">
-    <h1 class="text-2xl font-bold text-gray-800 mb-8">Checkout</h1>
+    <h1 class="text-2xl font-bold text-gray-800 mb-8">Finalizar compra</h1>
 
-    <!-- Empty cart guard -->
+    <!-- Carrito vacío -->
     <div v-if="cart.items.length === 0" class="text-center py-20">
       <i class="fa fa-cart-arrow-down text-6xl text-gray-300 mb-4" />
-      <p class="text-lg text-gray-500 mb-4">Your cart is empty.</p>
-      <router-link to="/shop" class="btn-primary">Back to Shop</router-link>
+      <p class="text-lg text-gray-500 mb-4">Tu carrito está vacío.</p>
+      <router-link to="/shop" class="btn-primary">Volver a la tienda</router-link>
     </div>
 
     <div v-else class="grid lg:grid-cols-3 gap-10">
 
-      <!-- Checkout form -->
+      <!-- Formulario de checkout -->
       <div class="lg:col-span-2 space-y-6">
 
-        <!-- Step indicator -->
+        <!-- Indicador de pasos -->
         <div class="flex gap-2 mb-4">
           <span
-            v-for="(label, i) in ['Shipping', 'Review & Pay']"
+            v-for="(label, i) in ['Envío', 'Revisar y pagar']"
             :key="i"
             :class="[
               'px-4 py-1.5 rounded-full text-sm font-medium transition',
@@ -79,45 +79,45 @@ async function placeOrder() {
           </span>
         </div>
 
-        <!-- Step 1: Shipping address -->
+        <!-- Paso 1: Dirección de envío -->
         <div v-if="step === 1" class="bg-white rounded-lg shadow-sm p-6">
-          <h2 class="text-lg font-bold text-gray-800 mb-5">Shipping Address</h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-5">Dirección de envío</h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-              <input v-model="address.firstName" class="input" placeholder="John" required />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <input v-model="address.firstName" class="input" placeholder="Juan" required />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-              <input v-model="address.lastName" class="input" placeholder="Doe" required />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
+              <input v-model="address.lastName" class="input" placeholder="García" required />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input v-model="address.email" type="email" class="input" placeholder="john@example.com" />
+              <input v-model="address.email" type="email" class="input" placeholder="juan@ejemplo.com" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input v-model="address.phone" class="input" placeholder="555-0100" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+              <input v-model="address.phone" class="input" placeholder="11-1234-5678" />
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
-              <input v-model="address.address" class="input" placeholder="123 Main Street" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Calle y número *</label>
+              <input v-model="address.address" class="input" placeholder="Av. Corrientes 1234" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">City *</label>
-              <input v-model="address.city" class="input" placeholder="New York" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ciudad *</label>
+              <input v-model="address.city" class="input" placeholder="Buenos Aires" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">State / Province</label>
-              <input v-model="address.state" class="input" placeholder="NY" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
+              <input v-model="address.state" class="input" placeholder="Buenos Aires" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">ZIP / Postal Code *</label>
-              <input v-model="address.zipCode" class="input" placeholder="10001" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">Código postal *</label>
+              <input v-model="address.zipCode" class="input" placeholder="1043" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Country *</label>
-              <input v-model="address.country" class="input" placeholder="United States" />
+              <label class="block text-sm font-medium text-gray-700 mb-1">País *</label>
+              <input v-model="address.country" class="input" placeholder="Argentina" />
             </div>
           </div>
 
@@ -127,21 +127,21 @@ async function placeOrder() {
               :disabled="!address.firstName || !address.lastName || !address.email || !address.address || !address.city || !address.zipCode || !address.country"
               @click="step = 2"
             >
-              Continue to Review <i class="fa fa-arrow-right ml-2" />
+              Continuar <i class="fa fa-arrow-right ml-2" />
             </button>
           </div>
         </div>
 
-        <!-- Step 2: Review -->
+        <!-- Paso 2: Revisión -->
         <div v-if="step === 2" class="bg-white rounded-lg shadow-sm p-6">
           <div class="flex items-center justify-between mb-5">
-            <h2 class="text-lg font-bold text-gray-800">Review Your Order</h2>
+            <h2 class="text-lg font-bold text-gray-800">Revisá tu pedido</h2>
             <button class="text-sm text-brand hover:underline" @click="step = 1">
-              Edit Address
+              Editar dirección
             </button>
           </div>
 
-          <!-- Address summary -->
+          <!-- Resumen de dirección -->
           <div class="bg-gray-50 rounded p-4 text-sm text-gray-600 mb-5">
             <p class="font-medium text-gray-800 mb-1">{{ address.firstName }} {{ address.lastName }}</p>
             <p>{{ address.address }}, {{ address.city }} {{ address.zipCode }}</p>
@@ -149,7 +149,7 @@ async function placeOrder() {
             <p class="mt-1">{{ address.email }}</p>
           </div>
 
-          <!-- Items list -->
+          <!-- Lista de productos -->
           <div class="divide-y">
             <div
               v-for="item in cart.items"
@@ -159,18 +159,18 @@ async function placeOrder() {
               <img :src="item.product.image" :alt="item.product.name" class="w-14 h-14 rounded object-cover" />
               <div class="flex-1">
                 <p class="text-sm font-medium text-gray-800">{{ item.product.name }}</p>
-                <p class="text-xs text-gray-400">{{ item.selectedSize }} · {{ item.selectedColor.name }} · Qty {{ item.quantity }}</p>
+                <p class="text-xs text-gray-400">{{ item.selectedSize }} · {{ item.selectedColor.name }} · Cantidad {{ item.quantity }}</p>
               </div>
               <p class="font-semibold text-gray-800 text-sm">${{ (item.product.price * item.quantity).toFixed(2) }}</p>
             </div>
           </div>
 
-          <!-- Payment (mock) -->
+          <!-- Método de pago (mock) -->
           <div class="mt-5 pt-4 border-t">
-            <h3 class="font-semibold text-gray-700 mb-3">Payment Method</h3>
+            <h3 class="font-semibold text-gray-700 mb-3">Método de pago</h3>
             <div class="flex gap-3 flex-wrap">
               <label
-                v-for="pm in ['Credit Card', 'PayPal', 'Crypto']"
+                v-for="pm in ['Tarjeta de crédito', 'PayPal', 'Cripto']"
                 :key="pm"
                 class="flex items-center gap-2 cursor-pointer border border-gray-200 rounded px-3 py-2 text-sm hover:border-brand transition"
               >
@@ -182,19 +182,19 @@ async function placeOrder() {
         </div>
       </div>
 
-      <!-- Order Summary sticky -->
+      <!-- Resumen del pedido sticky -->
       <div class="lg:col-span-1">
         <div class="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 pb-3 border-b">Summary</h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-4 pb-3 border-b">Resumen</h2>
           <div class="space-y-2 text-sm text-gray-600">
             <div class="flex justify-between">
               <span>Subtotal</span>
               <span>${{ cart.subtotal.toFixed(2) }}</span>
             </div>
             <div class="flex justify-between">
-              <span>Shipping</span>
+              <span>Envío</span>
               <span :class="cart.shipping === 0 ? 'text-brand' : ''">
-                {{ cart.shipping === 0 ? 'FREE' : `$${cart.shipping.toFixed(2)}` }}
+                {{ cart.shipping === 0 ? 'GRATIS' : `$${cart.shipping.toFixed(2)}` }}
               </span>
             </div>
             <hr />
@@ -211,7 +211,7 @@ async function placeOrder() {
             @click="placeOrder"
           >
             <i :class="['fa mr-2', submitting ? 'fa-spinner fa-spin' : 'fa-lock']" />
-            {{ submitting ? 'Placing Order...' : 'Place Order' }}
+            {{ submitting ? 'Procesando...' : 'Confirmar pedido' }}
           </button>
         </div>
       </div>

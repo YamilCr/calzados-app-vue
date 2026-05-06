@@ -7,11 +7,11 @@ const orders = ref<Order[]>([])
 const loading = ref(true)
 
 const statusConfig: Record<string, { label: string; class: string; icon: string }> = {
-  pending:    { label: 'Pending',    class: 'bg-yellow-100 text-yellow-700', icon: 'fa-clock' },
-  processing: { label: 'Processing', class: 'bg-blue-100 text-blue-700',    icon: 'fa-gear fa-spin' },
-  shipped:    { label: 'Shipped',    class: 'bg-indigo-100 text-indigo-700', icon: 'fa-truck' },
-  delivered:  { label: 'Delivered',  class: 'bg-green-100 text-green-700',   icon: 'fa-circle-check' },
-  cancelled:  { label: 'Cancelled',  class: 'bg-red-100 text-red-700',       icon: 'fa-circle-xmark' },
+  pending:    { label: 'Pendiente',   class: 'bg-yellow-100 text-yellow-700', icon: 'fa-clock' },
+  processing: { label: 'En proceso',  class: 'bg-blue-100 text-blue-700',    icon: 'fa-gear fa-spin' },
+  shipped:    { label: 'Enviado',     class: 'bg-indigo-100 text-indigo-700', icon: 'fa-truck' },
+  delivered:  { label: 'Entregado',   class: 'bg-green-100 text-green-700',   icon: 'fa-circle-check' },
+  cancelled:  { label: 'Cancelado',   class: 'bg-red-100 text-red-700',       icon: 'fa-circle-xmark' },
 }
 
 onMounted(async () => {
@@ -20,15 +20,15 @@ onMounted(async () => {
 })
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(iso).toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 </script>
 
 <template>
   <div class="max-w-4xl mx-auto px-4 py-10">
-    <h1 class="text-2xl font-bold text-gray-800 mb-8">My Orders</h1>
+    <h1 class="text-2xl font-bold text-gray-800 mb-8">Mis Pedidos</h1>
 
-    <!-- Loading -->
+    <!-- Cargando -->
     <div v-if="loading" class="space-y-4">
       <div v-for="n in 2" :key="n" class="bg-white rounded-lg shadow-sm p-6 animate-pulse">
         <div class="flex justify-between mb-3">
@@ -41,22 +41,22 @@ function formatDate(iso: string) {
       </div>
     </div>
 
-    <!-- Empty state -->
+    <!-- Sin pedidos -->
     <div v-else-if="orders.length === 0" class="text-center py-20">
       <i class="fa fa-box-open text-6xl text-gray-300 mb-5" />
-      <p class="text-xl font-semibold text-gray-500 mb-2">No orders yet</p>
-      <p class="text-gray-400 mb-6">Start shopping to see your orders here.</p>
-      <router-link to="/shop" class="btn-primary">Browse Shop</router-link>
+      <p class="text-xl font-semibold text-gray-500 mb-2">Todavía no tenés pedidos</p>
+      <p class="text-gray-400 mb-6">Empezá a comprar para ver tus pedidos acá.</p>
+      <router-link to="/shop" class="btn-primary">Ver productos</router-link>
     </div>
 
-    <!-- Orders list -->
+    <!-- Lista de pedidos -->
     <div v-else class="space-y-6">
       <div
         v-for="order in orders"
         :key="order.id"
         class="bg-white rounded-lg shadow-sm overflow-hidden"
       >
-        <!-- Order header -->
+        <!-- Cabecera del pedido -->
         <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-gray-50 border-b">
           <div>
             <span class="font-mono font-bold text-gray-800">{{ order.id }}</span>
@@ -73,7 +73,7 @@ function formatDate(iso: string) {
           </div>
         </div>
 
-        <!-- Items -->
+        <!-- Productos -->
         <div class="px-6 py-4">
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <div
@@ -96,7 +96,7 @@ function formatDate(iso: string) {
             </div>
           </div>
 
-          <!-- Shipping address -->
+          <!-- Dirección de envío -->
           <div class="mt-4 pt-3 border-t text-xs text-gray-500 flex items-start gap-1">
             <i class="fa fa-map-marker-alt mt-0.5 text-gray-400" />
             {{ order.shippingAddress.address }},
