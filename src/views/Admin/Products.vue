@@ -208,6 +208,7 @@ const fDescripcion     = ref('')
 const fSubcategoriaId  = ref('')
 const fActivo          = ref(true)
 const fDestacado       = ref(false)
+const fEnCarrusel      = ref(false)
 const fTalles          = ref('')
 const fColorIds        = ref<string[]>([])
 const fImagenPrincipal = ref('')
@@ -237,6 +238,7 @@ function buildPayload(): ProductPayload {
     subcategoria_id: fSubcategoriaId.value || null,
     activo:          fActivo.value,
     destacado:       fDestacado.value,
+    en_carrusel:     fEnCarrusel.value,
     imagenesUrls:    todasImagenes.length ? todasImagenes : undefined,
     talles:          talles.length ? talles : undefined,
     variantes:       variantes.length ? variantes : undefined,
@@ -246,7 +248,7 @@ function buildPayload(): ProductPayload {
 function resetForm() {
   fNombre.value = ''; fCodigo.value = ''; fPrecio.value = 0
   fPrecioAnterior.value = undefined; fDescripcion.value = ''
-  fSubcategoriaId.value = ''; fActivo.value = true; fDestacado.value = false
+  fSubcategoriaId.value = ''; fActivo.value = true; fDestacado.value = false; fEnCarrusel.value = false
   fTalles.value = ''; fColorIds.value = []
   fImagenPrincipal.value = ''
   imageFile.value = null; imagePreview.value = ''; uploadProgress.value = 0
@@ -270,6 +272,7 @@ function openEdit(product: Product) {
   fSubcategoriaId.value  = ''
   fActivo.value          = product.inStock
   fDestacado.value       = product.featured
+  fEnCarrusel.value      = product.inCarrusel
   fImagenPrincipal.value = product.image
   imagePreview.value     = product.image
   imageFile.value        = null
@@ -358,19 +361,19 @@ function toggleColor(id: string) {
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">
-          <i class="fa fa-box-open text-brand mr-2" />Gestión de Productos
+          <i class="fa fa-box-open text-brand mr-2"></i>Gestión de Productos
         </h1>
         <p class="text-sm text-gray-500 mt-0.5">{{ total }} producto{{ total !== 1 ? 's' : '' }} en total</p>
       </div>
       <button class="btn-primary gap-2" @click="openCreate">
-        <i class="fa fa-plus" />Nuevo Producto
+        <i class="fa fa-plus"></i>Nuevo Producto
       </button>
     </div>
 
     <!-- Filtros -->
     <div class="flex flex-wrap gap-3 mb-5">
       <div class="relative flex-1 min-w-[200px]">
-        <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+        <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
         <input v-model="search" type="text" placeholder="Buscar por nombre o categoría…" class="input pl-9" @input="currentPage = 1" />
       </div>
       <select v-model="categoriaFilter" class="input w-52" @change="currentPage = 1">
@@ -382,7 +385,7 @@ function toggleColor(id: string) {
     <!-- Tabla -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
       <div v-if="loading" class="p-12 text-center text-gray-400">
-        <i class="fa fa-spinner fa-spin text-3xl" />
+        <i class="fa fa-spinner fa-spin text-3xl"></i>
       </div>
       <div v-else class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -390,14 +393,14 @@ function toggleColor(id: string) {
             <tr>
               <th class="px-4 py-3 text-left w-16">Img</th>
               <th class="px-4 py-3 text-left cursor-pointer hover:text-brand transition select-none" @click="setSort('name')">
-                Nombre <i :class="['fa ml-1', sortField==='name'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']" />
+                Nombre <i :class="['fa ml-1', sortField==='name'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']"></i>
               </th>
               <th class="px-4 py-3 text-left">Código</th>
               <th class="px-4 py-3 text-left cursor-pointer hover:text-brand transition select-none" @click="setSort('category')">
-                Categoría <i :class="['fa ml-1', sortField==='category'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']" />
+                Categoría <i :class="['fa ml-1', sortField==='category'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']"></i>
               </th>
               <th class="px-4 py-3 text-right cursor-pointer hover:text-brand transition select-none" @click="setSort('price')">
-                Precio <i :class="['fa ml-1', sortField==='price'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']" />
+                Precio <i :class="['fa ml-1', sortField==='price'?(sortDir==='asc'?'fa-arrow-up text-brand':'fa-arrow-down text-brand'):'fa-sort text-gray-300']"></i>
               </th>
               <th class="px-4 py-3 text-center">Stock</th>
               <th class="px-4 py-3 text-center">Destacado</th>
@@ -407,14 +410,14 @@ function toggleColor(id: string) {
           <tbody class="divide-y divide-gray-100">
             <tr v-if="paginated.length === 0">
               <td colspan="8" class="px-4 py-12 text-center text-gray-400">
-                <i class="fa fa-inbox text-3xl block mb-2" />No se encontraron productos.
+                <i class="fa fa-inbox text-3xl block mb-2"></i>No se encontraron productos.
               </td>
             </tr>
             <tr v-for="product in paginated" :key="product.id" class="hover:bg-gray-50 transition">
               <td class="px-4 py-3">
                 <img v-if="product.image" :src="product.image" :alt="product.name" class="w-12 h-12 object-cover rounded-lg border border-gray-200" loading="lazy" />
                 <div v-else class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-                  <i class="fa fa-image text-gray-300" />
+                  <i class="fa fa-image text-gray-300"></i>
                 </div>
               </td>
               <td class="px-4 py-3">
@@ -431,20 +434,20 @@ function toggleColor(id: string) {
               </td>
               <td class="px-4 py-3 text-center">
                 <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', product.inStock?'bg-green-100 text-green-700':'bg-red-100 text-red-600']">
-                  <i :class="['fa text-[9px]', product.inStock?'fa-circle-check':'fa-circle-xmark']" />
+                  <i :class="['fa text-[9px]', product.inStock?'fa-circle-check':'fa-circle-xmark']"></i>
                   {{ product.inStock ? 'Disponible' : 'Sin stock' }}
                 </span>
               </td>
               <td class="px-4 py-3 text-center">
-                <i :class="['fa fa-star', product.featured?'text-yellow-400':'text-gray-200']" />
+                <i :class="['fa fa-star', product.featured?'text-yellow-400':'text-gray-200']"></i>
               </td>
               <td class="px-4 py-3 text-center">
                 <div class="flex items-center justify-center gap-1">
                   <button class="p-1.5 rounded hover:bg-brand/10 text-gray-500 hover:text-brand transition" @click="openEdit(product)">
-                    <i class="fa fa-pen-to-square" />
+                    <i class="fa fa-pen-to-square"></i>
                   </button>
                   <button class="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-500 transition" @click="askDelete(product)">
-                    <i class="fa fa-trash" />
+                    <i class="fa fa-trash"></i>
                   </button>
                 </div>
               </td>
@@ -458,13 +461,13 @@ function toggleColor(id: string) {
         <span>Página {{ currentPage }} de {{ localTotalPages }} ({{ filteredProducts.length }} resultados)</span>
         <div class="flex gap-1">
           <button class="px-3 py-1 rounded border hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition" :disabled="currentPage===1" @click="currentPage--">
-            <i class="fa fa-chevron-left" />
+            <i class="fa fa-chevron-left"></i>
           </button>
           <button v-for="p in localTotalPages" :key="p"
             :class="['px-3 py-1 rounded border transition', p===currentPage?'bg-brand text-white border-brand':'hover:bg-gray-50']"
             @click="currentPage=p">{{ p }}</button>
           <button class="px-3 py-1 rounded border hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition" :disabled="currentPage===localTotalPages" @click="currentPage++">
-            <i class="fa fa-chevron-right" />
+            <i class="fa fa-chevron-right"></i>
           </button>
         </div>
       </div>
@@ -478,11 +481,11 @@ function toggleColor(id: string) {
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 class="text-lg font-bold text-gray-900">
-                <i :class="['fa mr-2 text-brand', isEditing?'fa-pen-to-square':'fa-plus-circle']" />
+                <i :class="['fa mr-2 text-brand', isEditing?'fa-pen-to-square':'fa-plus-circle']"></i>
                 {{ isEditing ? 'Editar Producto' : 'Nuevo Producto' }}
               </h2>
               <button class="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition" @click="closeModal">
-                <i class="fa fa-xmark text-lg" />
+                <i class="fa fa-xmark text-lg"></i>
               </button>
             </div>
 
@@ -499,12 +502,12 @@ function toggleColor(id: string) {
                   <img v-if="imagePreview" :src="imagePreview" alt="preview" class="absolute inset-0 w-full h-full object-contain p-2" />
 
                   <div v-if="imagePreview" class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-2">
-                    <i class="fa fa-camera text-white text-2xl" />
+                    <i class="fa fa-camera text-white text-2xl"></i>
                     <span class="text-white text-sm font-medium">Cambiar imagen</span>
                   </div>
 
                   <div v-if="!imagePreview" class="flex flex-col items-center gap-2 text-gray-400 pointer-events-none">
-                    <i class="fa fa-cloud-arrow-up text-4xl" />
+                    <i class="fa fa-cloud-arrow-up text-4xl"></i>
                     <span class="text-sm">Hacé click para subir una imagen</span>
                     <span class="text-xs">JPG, PNG, WEBP · máx 5MB</span>
                   </div>
@@ -518,12 +521,12 @@ function toggleColor(id: string) {
                     <span>Subiendo…</span><span>{{ uploadProgress }}%</span>
                   </div>
                   <div class="w-full bg-gray-200 rounded-full h-1.5">
-                    <div class="bg-brand h-1.5 rounded-full transition-all" :style="{ width: uploadProgress + '%' }" />
+                    <div class="bg-brand h-1.5 rounded-full transition-all" :style="{ width: uploadProgress + '%' }"></div>
                   </div>
                 </div>
 
                 <button v-if="imagePreview && !uploading" type="button" class="mt-2 text-xs text-red-500 hover:text-red-700 flex items-center gap-1" @click="clearImage">
-                  <i class="fa fa-xmark" /> Quitar imagen
+                  <i class="fa fa-xmark"></i> Quitar imagen
                 </button>
               </div>
 
@@ -545,12 +548,12 @@ function toggleColor(id: string) {
                       <img v-if="slot.preview" :src="slot.preview" alt="preview" class="absolute inset-0 w-full h-full object-contain p-1.5" />
 
                       <div v-if="slot.preview" class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-1">
-                        <i class="fa fa-camera text-white text-xl" />
+                        <i class="fa fa-camera text-white text-xl"></i>
                         <span class="text-white text-xs font-medium">Cambiar</span>
                       </div>
 
                       <div v-if="!slot.preview" class="flex flex-col items-center gap-1.5 text-gray-400 pointer-events-none">
-                        <i class="fa fa-plus text-2xl" />
+                        <i class="fa fa-plus text-2xl"></i>
                         <span class="text-xs">Agregar foto</span>
                       </div>
 
@@ -560,7 +563,7 @@ function toggleColor(id: string) {
                     <!-- Barra de progreso por slot -->
                     <div v-if="slot.uploading" class="mt-1">
                       <div class="w-full bg-gray-200 rounded-full h-1">
-                        <div class="bg-brand h-1 rounded-full transition-all" :style="{ width: slot.progress + '%' }" />
+                        <div class="bg-brand h-1 rounded-full transition-all" :style="{ width: slot.progress + '%' }"></div>
                       </div>
                     </div>
 
@@ -571,7 +574,7 @@ function toggleColor(id: string) {
                       class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-sm z-10"
                       @click.prevent="clearExtraImage(idx)"
                     >
-                      <i class="fa fa-xmark text-[10px]" />
+                      <i class="fa fa-xmark text-[10px]"></i>
                     </button>
 
                   </div>
@@ -619,7 +622,7 @@ function toggleColor(id: string) {
               <!-- ── Descripción ───────────────────────────────────────── -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea v-model="fDescripcion" class="input resize-none" rows="3" placeholder="Descripción del producto..." />
+                <textarea v-model="fDescripcion" class="input resize-none" rows="3" placeholder="Descripción del producto..."></textarea>
               </div>
 
               <!-- ── Talles ────────────────────────────────────────────── -->
@@ -641,37 +644,39 @@ function toggleColor(id: string) {
                       fColorIds.includes(color.id)?'border-brand bg-brand/10 text-brand':'border-gray-200 text-gray-600 hover:border-brand']"
                     @click="toggleColor(color.id)"
                   >
-                    <span v-if="color.codigo_hex" class="w-3 h-3 rounded-full border border-gray-300 shrink-0" :style="{ backgroundColor: color.codigo_hex }" />
+                    <span v-if="color.codigo_hex" class="w-3 h-3 rounded-full border border-gray-300 shrink-0" :style="{ backgroundColor: color.codigo_hex }"></span>
                     {{ color.nombre }}
-                    <i v-if="fColorIds.includes(color.id)" class="fa fa-check text-[10px]" />
+                    <i v-if="fColorIds.includes(color.id)" class="fa fa-check text-[10px]"></i>
                   </button>
                   <span v-if="colores.length === 0" class="text-xs text-gray-400 italic">No hay colores registrados.</span>
                 </div>
               </div>
 
-              <!-- ── Toggles ───────────────────────────────────────────── -->
-              <div class="flex gap-6">
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                  <input v-model="fActivo" type="checkbox" class="w-4 h-4 rounded accent-brand" />
-                  <span class="text-sm font-medium text-gray-700">En stock / Activo</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer select-none">
-                  <input v-model="fDestacado" type="checkbox" class="w-4 h-4 rounded accent-brand" />
-                  <span class="text-sm font-medium text-gray-700">Destacado</span>
-                </label>
-              </div>
+            <!-- ── Toggles ───────────────────────────────────────────── -->
+            <div class="flex gap-6">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input v-model="fActivo" type="checkbox" class="w-4 h-4 rounded accent-brand" />
+                <span class="text-sm font-medium text-gray-700">En stock / Activo</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input v-model="fDestacado" type="checkbox" class="w-4 h-4 rounded accent-brand" />
+                <span class="text-sm font-medium text-gray-700">Destacado</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input v-model="fEnCarrusel" type="checkbox" class="w-4 h-4 rounded accent-brand" />
+                <span class="text-sm font-medium text-gray-700">Mostrar en carrusel</span>
+              </label>
             </div>
 
             <!-- Footer -->
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button class="btn-ghost" @click="closeModal">Cancelar</button>
               <button class="btn-primary" :disabled="saving || isUploading" @click="saveProduct">
-                <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']" />
+                <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']"></i>
                 {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
               </button>
             </div>
           </div>
-        </div>
       </Transition>
     </Teleport>
 
@@ -682,7 +687,7 @@ function toggleColor(id: string) {
           <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <div class="flex items-center gap-3 mb-4">
               <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <i class="fa fa-triangle-exclamation text-red-500" />
+                <i class="fa fa-triangle-exclamation text-red-500"></i>
               </div>
               <h3 class="font-bold text-gray-900">Desactivar producto</h3>
             </div>
@@ -692,7 +697,7 @@ function toggleColor(id: string) {
             <div class="flex gap-3 justify-end">
               <button class="btn-ghost" :disabled="deleting" @click="confirmOpen = false">Cancelar</button>
               <button class="btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400" :disabled="deleting" @click="confirmDelete">
-                <i :class="['fa mr-1.5', deleting?'fa-spinner fa-spin':'fa-trash']" />Desactivar
+                <i :class="['fa mr-1.5', deleting?'fa-spinner fa-spin':'fa-trash']"></i>Desactivar
               </button>
             </div>
           </div>

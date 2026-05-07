@@ -71,6 +71,8 @@ export interface Product {
   description: string
   featured: boolean
   inStock: boolean
+  destacado: boolean
+  inCarrusel: boolean
   slug: string
   /** rating y reviewCount no existen en el backend; se dejan opcionales para compatibilidad */
   rating?: number
@@ -100,6 +102,7 @@ export interface ProductPayload {
   subcategoria_id?: string | null
   activo?: boolean
   destacado?: boolean
+  en_carrusel?: boolean
   imagenesUrls?: string[]
   talles?: string[]
   variantes?: Array<{ talle?: string; color_id?: string }>
@@ -209,6 +212,12 @@ export const productApi = {
       perPage:    res.perPage,
       totalPages: res.totalPages,
     }
+  },
+
+  /** GET /v1/products/carrusel */
+  async getCarrusel(): Promise<Product[]> {
+    const res = await http<ApiResponse<Product[]>>('/products/carrusel')
+    return res.data
   },
 
   /** GET /v1/products/destacados */
