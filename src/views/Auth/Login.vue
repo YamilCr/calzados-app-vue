@@ -106,9 +106,9 @@ const isRegisterLoading = computed(() => auth.loading && activeTab.value === 're
             </div>
 
             <!-- Demo hint -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+            <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
               <strong>Demo:</strong> demo@example.com / demo1234
-            </div>
+            </div> -->
 
             <!-- Email -->
             <div>

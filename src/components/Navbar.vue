@@ -53,7 +53,7 @@ function closeAll() {
 
         <!-- Logo -->
         <router-link to="/" class="text-2xl font-bold text-brand" @click="closeAll">
-          Zay
+          Calzados - CR
         </router-link>
 
         <!-- Desktop nav links -->

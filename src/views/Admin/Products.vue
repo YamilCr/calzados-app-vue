@@ -668,6 +668,8 @@ function toggleColor(id: string) {
               </label>
             </div>
 
+            </div> <!-- cierra px-6 py-5 space-y-5 (cuerpo del formulario) -->
+
             <!-- Footer -->
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button class="btn-ghost" @click="closeModal">Cancelar</button>
@@ -676,7 +678,9 @@ function toggleColor(id: string) {
                 {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
               </button>
             </div>
-          </div>
+
+          </div> <!-- cierra bg-white (modal card) -->
+        </div> <!-- cierra div v-if="modalOpen" (backdrop) -->
       </Transition>
     </Teleport>
 
