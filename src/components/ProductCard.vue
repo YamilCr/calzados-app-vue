@@ -17,14 +17,14 @@ function quickAddToCart() {
     props.product.sizes[0],
     props.product.colors[0],
   )
-  show(`"${props.product.name}" added to cart`, 'success')
+  show(`"${props.product.name}" agregado al carrito`, 'success')
 }
 </script>
 
 <template>
   <div class="group relative rounded overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
 
-    <!-- Image + overlay -->
+    <!-- Imagen + overlay -->
     <div class="relative overflow-hidden">
       <img
         :src="product.image"
@@ -33,25 +33,26 @@ function quickAddToCart() {
         loading="lazy"
       />
 
-      <!-- Hover overlay with action buttons -->
+      <!-- Overlay hover con botones -->
       <div class="product-overlay rounded">
         <div class="flex flex-col gap-2">
           <button
             class="bg-white/20 hover:bg-brand text-white border border-white/50 rounded px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition"
             @click.prevent="quickAddToCart"
           >
-            <i class="fas fa-cart-plus mr-1" /> Add to Cart
+            <i class="fas fa-cart-plus mr-1" /> Agregar al carrito
           </button>
+
           <router-link
             :to="`/product/${product.slug}`"
             class="bg-white/20 hover:bg-white hover:text-gray-800 text-white border border-white/50 rounded px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition text-center"
           >
-            <i class="far fa-eye mr-1" /> View
+            <i class="far fa-eye mr-1" /> Ver producto
           </router-link>
         </div>
       </div>
 
-      <!-- Discount badge -->
+      <!-- Badge descuento -->
       <div
         v-if="product.originalPrice"
         class="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded"
@@ -69,10 +70,12 @@ function quickAddToCart() {
         {{ product.name }}
       </router-link>
 
-      <!-- Sizes -->
-      <p class="text-xs text-gray-400 mb-2">{{ product.sizes.join(' / ') }}</p>
+      <!-- Talles -->
+      <p class="text-xs text-gray-400 mb-2">
+        {{ product.sizes.join(' / ') }}
+      </p>
 
-      <!-- Color dots + stars -->
+      <!-- Colores + estrellas -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex gap-1">
           <span
@@ -83,18 +86,28 @@ function quickAddToCart() {
             class="w-3.5 h-3.5 rounded-full border border-gray-200 cursor-default"
           />
         </div>
+
         <StarRating :rating="product.rating" size="sm" />
       </div>
 
-      <!-- Price -->
+      <!-- Precio -->
       <div class="flex items-center justify-between mt-1">
         <div class="flex items-center gap-2">
-          <span class="font-bold text-gray-900">${{ product.price.toFixed(2) }}</span>
-          <span v-if="product.originalPrice" class="text-xs text-gray-400 line-through">
+          <span class="font-bold text-gray-900">
+            ${{ product.price.toFixed(2) }}
+          </span>
+
+          <span
+            v-if="product.originalPrice"
+            class="text-xs text-gray-400 line-through"
+          >
             ${{ product.originalPrice.toFixed(2) }}
           </span>
         </div>
-        <span class="text-xs text-gray-400">{{ product.reviewCount }} reviews</span>
+
+        <span class="text-xs text-gray-400">
+          {{ product.reviewCount }} reseñas
+        </span>
       </div>
     </div>
   </div>

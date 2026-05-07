@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * API Client — integrado con el backend real
  *

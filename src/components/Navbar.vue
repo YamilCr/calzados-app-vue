@@ -13,11 +13,11 @@ const searchOpen = ref(false)
 const searchQuery = ref('')
 
 const navLinks = [
-  { label: 'Home', to: '/' },
-  { label: 'Shop', to: '/shop' },
-  { label: 'About', to: '/about' },
-  { label: 'Contact', to: '/contact' },
-  { label: 'Admin', to: '/admin/products' },
+  { label: 'Inicio', to: '/' },
+  { label: 'Tienda', to: '/shop' },
+  { label: 'Nosotros', to: '/about' },
+  { label: 'Contacto', to: '/contact' },
+  { label: 'Administrador', to: '/admin/products' },
 ]
 
 const isActive = computed(() => (path: string) => {
