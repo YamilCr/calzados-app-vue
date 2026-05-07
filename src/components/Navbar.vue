@@ -12,13 +12,21 @@ const mobileOpen = ref(false)
 const searchOpen = ref(false)
 const searchQuery = ref('')
 
-const navLinks = [
+/*const navLinks = [
   { label: 'Inicio', to: '/' },
   { label: 'Tienda', to: '/shop' },
   { label: 'Nosotros', to: '/about' },
   { label: 'Contacto', to: '/contact' },
   { label: 'Administrador', to: '/admin/products' },
-]
+]*/
+
+const navLinks = computed(() => [
+  { label: 'Inicio', to: '/' },
+  { label: 'Tienda', to: '/shop' },
+  { label: 'Nosotros', to: '/about' },
+  { label: 'Contacto', to: '/contact' },
+  ...(auth.isAuthenticated ? [{ label: 'Admin', to: '/admin/products' }] : []),
+])
 
 const isActive = computed(() => (path: string) => {
   if (path === '/') return router.currentRoute.value.path === '/'
