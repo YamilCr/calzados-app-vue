@@ -352,6 +352,13 @@ function toggleColor(id: string) {
   if (idx === -1) fColorIds.value.push(id)
   else fColorIds.value.splice(idx, 1)
 }
+
+function handlePrecioAnterior(e: Event) {
+  const value = (e.target as HTMLInputElement).value
+
+  fPrecioAnterior.value =
+    value === '' ? undefined : Number(value)
+}
 </script>
 
 <template>
@@ -602,7 +609,15 @@ function toggleColor(id: string) {
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Precio anterior</label>
-                  <input v-model.number="fPrecioAnterior" type="number" min="0" step="0.01" class="input" placeholder="Opcional" />
+                  <input
+                    :value="fPrecioAnterior ?? ''"
+                    @input="handlePrecioAnterior"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="input"
+                    placeholder="Opcional"
+                  />
                 </div>
               </div>
 
