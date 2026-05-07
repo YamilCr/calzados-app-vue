@@ -19,6 +19,7 @@ const perPage     = 8
 
 const search          = ref('')
 const categoriaFilter = ref('')
+const stockFilter     = ref<'all' | 'active' | 'inactive'>('all')
 const sortField       = ref<'name' | 'price' | 'category'>('name')
 const sortDir         = ref<'asc' | 'desc'>('asc')
 
@@ -35,17 +36,33 @@ const categoriasUnicas = computed<string[]>(() => {
 // ─── Filtrado / paginación local ──────────────────────────────────────────────
 const filteredProducts = computed(() => {
   let list = [...products.value]
+
   if (search.value.trim()) {
-    const q = search.value.toLowerCase()
-    list = list.filter((p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+    const q = search.value.trim().toLowerCase()
+
+    list = list.filter((p) =>
+      p.name.toLowerCase().includes(q) ||
+      p.codigo.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      p.subcategory.toLowerCase().includes(q)
+    )
   }
+
+
   if (categoriaFilter.value)
     list = list.filter((p) => p.category.toLowerCase() === categoriaFilter.value.toLowerCase())
+
+  if (stockFilter.value === 'active')
+    list = list.filter((p) => p.inStock)
+  else if (stockFilter.value === 'inactive')
+    list = list.filter((p) => !p.inStock)
+
   list.sort((a, b) => {
     const va = String(a[sortField.value as keyof Product] ?? '')
     const vb = String(b[sortField.value as keyof Product] ?? '')
     return sortDir.value === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
   })
+
   return list
 })
 
@@ -60,6 +77,8 @@ function setSort(field: typeof sortField.value) {
   if (sortField.value === field) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   else { sortField.value = field; sortDir.value = 'asc' }
 }
+
+function resetPage() { currentPage.value = 1 }
 
 // ─── Carga inicial ────────────────────────────────────────────────────────────
 async function loadAll() {
@@ -164,7 +183,6 @@ function onExtraFileChange(e: Event, idx: number) {
   extraImages.value[idx].preview = URL.createObjectURL(file)
   extraImages.value[idx].url     = ''
 
-  // Agregar slot vacío si el usuario llenó el último
   if (idx === extraImages.value.length - 1 && extraImages.value.length < MAX_EXTRA) {
     extraImages.value.push(makeEmptySlot())
   }
@@ -195,10 +213,6 @@ const modalOpen  = ref(false)
 const isEditing  = ref(false)
 const editingId  = ref<string | null>(null)
 const saving     = ref(false)
-
-const deleteTarget = ref<Product | null>(null)
-const confirmOpen  = ref(false)
-const deleting     = ref(false)
 
 const fNombre          = ref('')
 const fCodigo          = ref('')
@@ -278,7 +292,6 @@ function openEdit(product: Product) {
   imageFile.value        = null
   uploadProgress.value   = 0
 
-  // Poblar slots de imágenes adicionales con las URLs existentes
   const urlsAdicionales = product.images.slice(1)
   extraImages.value = urlsAdicionales.length
     ? [
@@ -330,20 +343,39 @@ async function saveProduct() {
   }
 }
 
-function askDelete(product: Product) { deleteTarget.value = product; confirmOpen.value = true }
+// ─── Toggle stock — actualización optimista (sin recarga) ─────────────────────
+const togglingIds = ref<Set<string>>(new Set())
 
-async function confirmDelete() {
-  if (!deleteTarget.value) return
-  deleting.value = true
+async function toggleStock(product: Product) {
+  if (togglingIds.value.has(product.id)) return
+
+  // Actualización optimista: mutamos el array local inmediatamente
+  const idx = products.value.findIndex((p) => p.id === product.id)
+  if (idx !== -1) products.value[idx] = { ...products.value[idx], inStock: !product.inStock }
+
+  togglingIds.value = new Set([...togglingIds.value, product.id])
+
   try {
-    await productApi.remove(deleteTarget.value.id)
-    toastSuccess(`"${deleteTarget.value.name}" desactivado.`)
-    if (currentPage.value > localTotalPages.value) currentPage.value = localTotalPages.value
-    await loadAll()
+    await productApi.update(product.id, {
+      codigo:          product.codigo,
+      nombre:          product.name,
+      descripcion:     product.description || undefined,
+      precio:          product.price,
+      precio_anterior: product.originalPrice ?? null,
+      subcategoria_id: null,
+      activo:          !product.inStock,
+      destacado:       product.featured,
+      en_carrusel:     product.inCarrusel,
+    })
+    toastSuccess(product.inStock ? `"${product.name}" desactivado.` : `"${product.name}" activado.`)
   } catch (e) {
-    toastError(e instanceof Error ? e.message : 'Error al eliminar.')
+    // Revertir en caso de error
+    if (idx !== -1) products.value[idx] = { ...products.value[idx], inStock: product.inStock }
+    toastError(e instanceof Error ? e.message : 'Error al cambiar estado.')
   } finally {
-    deleting.value = false; confirmOpen.value = false; deleteTarget.value = null
+    const next = new Set(togglingIds.value)
+    next.delete(product.id)
+    togglingIds.value = next
   }
 }
 
@@ -351,13 +383,6 @@ function toggleColor(id: string) {
   const idx = fColorIds.value.indexOf(id)
   if (idx === -1) fColorIds.value.push(id)
   else fColorIds.value.splice(idx, 1)
-}
-
-function handlePrecioAnterior(e: Event) {
-  const value = (e.target as HTMLInputElement).value
-
-  fPrecioAnterior.value =
-    value === '' ? undefined : Number(value)
 }
 </script>
 
@@ -379,14 +404,59 @@ function handlePrecioAnterior(e: Event) {
 
     <!-- Filtros -->
     <div class="flex flex-wrap gap-3 mb-5">
+
+      <!-- Buscador -->
       <div class="relative flex-1 min-w-[200px]">
         <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input v-model="search" type="text" placeholder="Buscar por nombre o categoría…" class="input pl-9" @input="currentPage = 1" />
+        <input
+          v-model="search"
+          type="text"
+          placeholder="Buscar por nombre, codigo o categoría…"
+          class="input pl-9"
+          @input="resetPage"
+        />
       </div>
-      <select v-model="categoriaFilter" class="input w-52" @change="currentPage = 1">
+
+      <!-- Filtro categoría -->
+      <select v-model="categoriaFilter" class="input w-48" @change="resetPage">
         <option value="">Todas las categorías</option>
         <option v-for="cat in categoriasUnicas" :key="cat" :value="cat">{{ cat }}</option>
       </select>
+
+      <!-- Filtro stock: botones segmentados -->
+      <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+        <button
+          :class="['px-3 py-2 transition font-medium', stockFilter === 'all' ? 'bg-brand text-white' : 'bg-white text-gray-500 hover:bg-gray-50']"
+          @click="stockFilter = 'all'; resetPage()"
+        >Todos</button>
+        <button
+          :class="['px-3 py-2 transition font-medium border-l border-gray-200 flex items-center gap-1.5', stockFilter === 'active' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-500 hover:bg-gray-50']"
+          @click="stockFilter = 'active'; resetPage()"
+        >
+          <i class="fa fa-circle-check text-xs"></i>Activos
+        </button>
+        <button
+          :class="['px-3 py-2 transition font-medium border-l border-gray-200 flex items-center gap-1.5', stockFilter === 'inactive' ? 'bg-red-500 text-white border-red-500' : 'bg-white text-gray-500 hover:bg-gray-50']"
+          @click="stockFilter = 'inactive'; resetPage()"
+        >
+          <i class="fa fa-circle-xmark text-xs"></i>Inactivos
+        </button>
+      </div>
+
+      <!-- Ordenar -->
+      <select
+        class="input w-52"
+        :value="`${sortField}:${sortDir}`"
+        @change="(e) => { const [f, d] = (e.target as HTMLSelectElement).value.split(':'); sortField = f as any; sortDir = d as any; resetPage() }"
+      >
+        <option value="name:asc">Nombre A → Z</option>
+        <option value="name:desc">Nombre Z → A</option>
+        <option value="price:asc">Precio ↑ menor a mayor</option>
+        <option value="price:desc">Precio ↓ mayor a menor</option>
+        <option value="category:asc">Categoría A → Z</option>
+        <option value="category:desc">Categoría Z → A</option>
+      </select>
+
     </div>
 
     <!-- Tabla -->
@@ -420,7 +490,12 @@ function handlePrecioAnterior(e: Event) {
                 <i class="fa fa-inbox text-3xl block mb-2"></i>No se encontraron productos.
               </td>
             </tr>
-            <tr v-for="product in paginated" :key="product.id" class="hover:bg-gray-50 transition">
+            <tr
+              v-for="product in paginated"
+              :key="product.id"
+              class="hover:bg-gray-50 transition"
+              :class="{ 'opacity-50': togglingIds.has(product.id) }"
+            >
               <td class="px-4 py-3">
                 <img v-if="product.image" :src="product.image" :alt="product.name" class="w-12 h-12 object-cover rounded-lg border border-gray-200" loading="lazy" />
                 <div v-else class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -440,21 +515,46 @@ function handlePrecioAnterior(e: Event) {
                 <span v-if="product.originalPrice" class="ml-1 text-xs text-gray-400 line-through">${{ product.originalPrice.toFixed(2) }}</span>
               </td>
               <td class="px-4 py-3 text-center">
-                <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', product.inStock?'bg-green-100 text-green-700':'bg-red-100 text-red-600']">
-                  <i :class="['fa text-[9px]', product.inStock?'fa-circle-check':'fa-circle-xmark']"></i>
+                <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', product.inStock ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600']">
+                  <i :class="['fa text-[9px]', product.inStock ? 'fa-circle-check' : 'fa-circle-xmark']"></i>
                   {{ product.inStock ? 'Disponible' : 'Sin stock' }}
                 </span>
               </td>
               <td class="px-4 py-3 text-center">
-                <i :class="['fa fa-star', product.featured?'text-yellow-400':'text-gray-200']"></i>
+                <i :class="['fa fa-star', product.featured ? 'text-yellow-400' : 'text-gray-200']"></i>
               </td>
               <td class="px-4 py-3 text-center">
                 <div class="flex items-center justify-center gap-1">
-                  <button class="p-1.5 rounded hover:bg-brand/10 text-gray-500 hover:text-brand transition" @click="openEdit(product)">
+                  <!-- Editar -->
+                  <button
+                    class="p-1.5 rounded hover:bg-brand/10 text-gray-500 hover:text-brand transition"
+                    title="Editar producto"
+                    @click="openEdit(product)"
+                  >
                     <i class="fa fa-pen-to-square"></i>
                   </button>
-                  <button class="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-500 transition" @click="askDelete(product)">
-                    <i class="fa fa-trash"></i>
+                  <!-- Activar / Desactivar (optimista, sin recarga) -->
+                  <button
+                    :class="[
+                      'p-1.5 rounded transition text-lg leading-none',
+                      togglingIds.has(product.id)
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : product.inStock
+                          ? 'hover:bg-red-50 text-green-500 hover:text-red-500'
+                          : 'hover:bg-green-50 text-gray-300 hover:text-green-600'
+                    ]"
+                    :title="product.inStock ? 'Desactivar producto' : 'Activar producto'"
+                    :disabled="togglingIds.has(product.id)"
+                    @click="toggleStock(product)"
+                  >
+                    <i
+                      :class="[
+                        'fa',
+                        togglingIds.has(product.id)
+                          ? 'fa-spinner fa-spin text-sm'
+                          : product.inStock ? 'fa-toggle-on' : 'fa-toggle-off'
+                      ]"
+                    ></i>
                   </button>
                 </div>
               </td>
@@ -547,7 +647,6 @@ function handlePrecioAnterior(e: Event) {
                 <div class="grid grid-cols-3 gap-3">
                   <div v-for="(slot, idx) in extraImages" :key="idx" class="relative">
 
-                    <!-- Zona de upload -->
                     <label
                       class="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
                       :class="slot.preview ? 'border-brand/40 bg-brand/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'"
@@ -567,14 +666,12 @@ function handlePrecioAnterior(e: Event) {
                       <input type="file" accept="image/*" class="hidden" @change="onExtraFileChange($event, idx)" />
                     </label>
 
-                    <!-- Barra de progreso por slot -->
                     <div v-if="slot.uploading" class="mt-1">
                       <div class="w-full bg-gray-200 rounded-full h-1">
                         <div class="bg-brand h-1 rounded-full transition-all" :style="{ width: slot.progress + '%' }"></div>
                       </div>
                     </div>
 
-                    <!-- Quitar imagen (X en esquina) -->
                     <button
                       v-if="slot.preview && !slot.uploading"
                       type="button"
@@ -609,15 +706,7 @@ function handlePrecioAnterior(e: Event) {
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Precio anterior</label>
-                  <input
-                    :value="fPrecioAnterior ?? ''"
-                    @input="handlePrecioAnterior"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    class="input"
-                    placeholder="Opcional"
-                  />
+                  <input v-model.number="fPrecioAnterior" type="number" min="0" step="0.01" class="input" placeholder="Opcional" />
                 </div>
               </div>
 
@@ -667,58 +756,41 @@ function handlePrecioAnterior(e: Event) {
                 </div>
               </div>
 
-            <!-- ── Toggles ───────────────────────────────────────────── -->
-            <div class="flex gap-6">
+              <!-- ── Toggles (Destacado y Carrusel) ───────────────────── -->
+              <div class="flex gap-6">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input v-model="fDestacado" type="checkbox" class="w-4 h-4 rounded accent-brand" />
+                  <span class="text-sm font-medium text-gray-700">Destacado</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input v-model="fEnCarrusel" type="checkbox" class="w-4 h-4 rounded accent-brand" />
+                  <span class="text-sm font-medium text-gray-700">Mostrar en carrusel</span>
+                </label>
+              </div>
+
+            </div>
+
+            <!-- Footer del modal -->
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
+              <!-- Stock toggle: izquierda -->
               <label class="flex items-center gap-2 cursor-pointer select-none">
                 <input v-model="fActivo" type="checkbox" class="w-4 h-4 rounded accent-brand" />
-                <span class="text-sm font-medium text-gray-700">En stock / Activo</span>
+                <span class="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <i :class="['fa text-base', fActivo ? 'fa-circle-check text-green-500' : 'fa-circle-xmark text-red-400']"></i>
+                  {{ fActivo ? 'En stock' : 'Sin stock' }}
+                </span>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input v-model="fDestacado" type="checkbox" class="w-4 h-4 rounded accent-brand" />
-                <span class="text-sm font-medium text-gray-700">Destacado</span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input v-model="fEnCarrusel" type="checkbox" class="w-4 h-4 rounded accent-brand" />
-                <span class="text-sm font-medium text-gray-700">Mostrar en carrusel</span>
-              </label>
-            </div>
 
-            </div> <!-- cierra px-6 py-5 space-y-5 (cuerpo del formulario) -->
-
-            <!-- Footer -->
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-              <button class="btn-ghost" @click="closeModal">Cancelar</button>
-              <button class="btn-primary" :disabled="saving || isUploading" @click="saveProduct">
-                <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']"></i>
-                {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
-              </button>
-            </div>
-
-          </div> <!-- cierra bg-white (modal card) -->
-        </div> <!-- cierra div v-if="modalOpen" (backdrop) -->
-      </Transition>
-    </Teleport>
-
-    <!-- ═══════════════ Confirmar desactivar ════════════════════════════ -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="confirmOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" @mousedown.self="confirmOpen = false">
-          <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <i class="fa fa-triangle-exclamation text-red-500"></i>
+              <!-- Botones: derecha -->
+              <div class="flex items-center gap-3">
+                <button class="btn-ghost" @click="closeModal">Cancelar</button>
+                <button class="btn-primary" :disabled="saving || isUploading" @click="saveProduct">
+                  <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']"></i>
+                  {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
+                </button>
               </div>
-              <h3 class="font-bold text-gray-900">Desactivar producto</h3>
             </div>
-            <p class="text-sm text-gray-600 mb-6">
-              ¿Desactivar <strong>{{ deleteTarget?.name }}</strong>? El producto quedará inactivo y no aparecerá en la tienda.
-            </p>
-            <div class="flex gap-3 justify-end">
-              <button class="btn-ghost" :disabled="deleting" @click="confirmOpen = false">Cancelar</button>
-              <button class="btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400" :disabled="deleting" @click="confirmDelete">
-                <i :class="['fa mr-1.5', deleting?'fa-spinner fa-spin':'fa-trash']"></i>Desactivar
-              </button>
-            </div>
+
           </div>
         </div>
       </Transition>

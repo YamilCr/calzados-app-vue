@@ -20,7 +20,7 @@ const filters = ref<ProductFilters>({
   categoria:    (route.query.categoria  as string) || undefined,
   subcategoria: (route.query.subcategoria as string) || undefined,
   search:       (route.query.search     as string) || undefined,
-  sortBy:       (route.query.sortBy     as ProductFilters['sortBy']) || 'destacado',
+  sortBy:       (route.query.sortBy     as ProductFilters['sortBy']) || 'nombre_asc',
   page:         1,
   perPage:      9,
 })
@@ -102,17 +102,24 @@ const hasActiveFilters = computed(() =>
 )
 
 watch(
-  filters,
-  () => {
-    fetchProducts()
-    router.replace({
-      query: Object.fromEntries(
-        Object.entries(filters.value).filter(([, v]) => v !== undefined),
-      ),
-    })
+  () => route.query,
+  async (query) => {
+    filters.value.categoria = (query.categoria as string) || undefined
+    filters.value.subcategoria = (query.subcategoria as string) || undefined
+    filters.value.search = (query.search as string) || undefined
+    filters.value.sortBy = (query.sortBy as ProductFilters['sortBy']) || 'nombre_asc'
+    filters.value.page = query.page ? Number(query.page) : 1
+    filters.value.perPage = 9
+
+    await fetchProducts()
   },
-  { deep: true },
+  { immediate: true },
 )
+
+onMounted(() => {
+  fetchCatalog()
+})
+
 
 onMounted(() => {
   fetchCatalog()

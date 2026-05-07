@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
+import Logo from '@/components/Logo.vue'
 
 const router = useRouter()
 const cart = useCartStore()
@@ -34,10 +35,14 @@ const isActive = computed(() => (path: string) => {
 })
 
 function handleSearch() {
-  if (!searchQuery.value.trim()) return
-  router.push({ path: '/shop', query: { search: searchQuery.value.trim() } })
+  const q = searchQuery.value.trim()
+  if (!q) return
+
+  router.push({ path: '/shop', query: { search: q } })
+
   searchQuery.value = ''
   searchOpen.value = false
+  mobileOpen.value = false
 }
 
 function closeAll() {
@@ -53,7 +58,7 @@ function closeAll() {
 
         <!-- Logo -->
         <router-link to="/" class="text-2xl font-bold text-brand" @click="closeAll">
-          Calzados - CR
+          <Logo />
         </router-link>
 
         <!-- Desktop nav links -->
@@ -211,9 +216,9 @@ function closeAll() {
             type="text"
             placeholder="Search..."
             class="input flex-1 text-sm"
-            @keyup.enter="handleSearch; mobileOpen = false"
+            @keyup.enter="handleSearch(); mobileOpen = false"
           />
-          <button class="btn-primary px-3" @click="handleSearch; mobileOpen = false">
+          <button class="btn-primary px-3" @click="handleSearch(); mobileOpen = false">
             <i class="fa fa-search" />
           </button>
         </div>

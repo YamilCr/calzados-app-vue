@@ -88,6 +88,7 @@ export interface ProductFilters {
   sortBy?: 'precio_asc' | 'precio_desc' | 'nombre_asc' | 'destacado' | 'featured' | 'price_asc' | 'price_desc' | 'name_asc' | 'rating'
   minPrice?: number
   maxPrice?: number
+  activos?: boolean
   page?: number
   perPage?: number
 }
