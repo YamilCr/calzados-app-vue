@@ -22,7 +22,7 @@ function quickAddToCart() {
 </script>
 
 <template>
-  <div class="group relative rounded overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
+  <div v-if="product.inStock" class="group relative rounded overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
 
     <!-- Imagen + overlay -->
     <div class="relative overflow-hidden">

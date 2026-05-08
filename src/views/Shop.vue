@@ -267,7 +267,7 @@ onMounted(() => {
 
         <!-- Results count -->
         <p v-if="!loading" class="text-xs text-gray-400 mb-4">
-          {{ totalProducts }} producto{{ totalProducts !== 1 ? 's' : '' }} encontrado{{ totalProducts !== 1 ? 's' : '' }}
+          <!-- {{ totalProducts }} producto{{ totalProducts !== 1 ? 's' : '' }} encontrado{{ totalProducts !== 1 ? 's' : '' }} -->
         </p>
 
         <!-- Skeleton -->
