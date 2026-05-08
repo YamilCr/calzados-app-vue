@@ -13,14 +13,6 @@ const mobileOpen = ref(false)
 const searchOpen = ref(false)
 const searchQuery = ref('')
 
-/*const navLinks = [
-  { label: 'Inicio', to: '/' },
-  { label: 'Tienda', to: '/shop' },
-  { label: 'Nosotros', to: '/about' },
-  { label: 'Contacto', to: '/contact' },
-  { label: 'Administrador', to: '/admin/products' },
-]*/
-
 const navLinks = computed(() => [
   { label: 'Inicio', to: '/' },
   { label: 'Tienda', to: '/shop' },
@@ -38,6 +30,7 @@ function handleSearch() {
   const q = searchQuery.value.trim()
   if (!q) return
 
+  // ✅ FIX: query limpia — no arrastrar categoria/subcategoria previas de /shop
   router.push({ path: '/shop', query: { search: q } })
 
   searchQuery.value = ''
@@ -105,9 +98,8 @@ function closeAll() {
           <!-- User -->
           <template v-if="auth.isAuthenticated">
             <div class="hidden sm:flex items-center gap-1">
-              <!-- antes direccionaba a mis pedidos  -->
               <router-link
-                to="#"  
+                to="#"
                 class="flex items-center gap-1.5 text-sm font-medium text-brand hover:opacity-75 transition px-1"
               >
                 <i class="fa fa-user-circle text-lg" />

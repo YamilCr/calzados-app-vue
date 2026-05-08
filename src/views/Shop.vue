@@ -21,6 +21,7 @@ const filters = ref<ProductFilters>({
   subcategoria: (route.query.subcategoria as string) || undefined,
   search:       (route.query.search     as string) || undefined,
   sortBy:       (route.query.sortBy     as ProductFilters['sortBy']) || 'nombre_asc',
+  activos:      true,   // ✅ FIX: siempre pedir solo productos activos con stock
   page:         1,
   perPage:      9,
 })
@@ -52,6 +53,7 @@ const sidebarGroups = computed(() =>
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchProducts() {
   loading.value = true
+  totalProducts.value = 0   // ✅ FIX: resetear contador para no mostrar valor anterior mientras carga
   try {
     const res = await productApi.list(filters.value)
     products.value      = res.data
@@ -80,7 +82,10 @@ function applyCategoria(catNombre: string) {
     filters.value.categoria    = catNombre
     filters.value.subcategoria = undefined
   }
-  filters.value.page = 1
+  // ✅ FIX: limpiar search al navegar por categorías — no pueden coexistir
+  filters.value.search = undefined
+  filters.value.page   = 1
+  syncUrlAndFetch()
 }
 
 function applySubcategoria(subNombre: string) {
@@ -89,11 +94,27 @@ function applySubcategoria(subNombre: string) {
   } else {
     filters.value.subcategoria = subNombre
   }
-  filters.value.page = 1
+  // ✅ FIX: limpiar search al navegar por subcategorías
+  filters.value.search = undefined
+  filters.value.page   = 1
+  syncUrlAndFetch()
+}
+
+function syncUrlAndFetch() {
+  const query: Record<string, string> = {}
+  if (filters.value.categoria)    query.categoria    = filters.value.categoria
+  if (filters.value.subcategoria) query.subcategoria = filters.value.subcategoria
+  if (filters.value.search)       query.search       = filters.value.search
+  if (filters.value.sortBy)       query.sortBy       = filters.value.sortBy
+  if (filters.value.page && filters.value.page > 1) query.page = String(filters.value.page)
+  skipNextQueryWatch = true
+  router.replace({ query })
+  // ✅ FIX: llamar fetchProducts directo; no depender del watcher
+  fetchProducts()
 }
 
 function clearFilters() {
-  filters.value = { sortBy: 'destacado', page: 1, perPage: 9 }
+  filters.value = { sortBy: 'destacado', page: 1, perPage: 9, activos: true }
   router.replace({ query: {} })
 }
 
@@ -101,29 +122,43 @@ const hasActiveFilters = computed(() =>
   !!(filters.value.categoria || filters.value.subcategoria || filters.value.search),
 )
 
+// Flag para evitar double-fetch cuando syncUrlAndFetch actualiza la URL
+let skipNextQueryWatch = false
+
 watch(
   () => route.query,
   async (query) => {
-    filters.value.categoria = (query.categoria as string) || undefined
-    filters.value.subcategoria = (query.subcategoria as string) || undefined
-    filters.value.search = (query.search as string) || undefined
-    filters.value.sortBy = (query.sortBy as ProductFilters['sortBy']) || 'nombre_asc'
-    filters.value.page = query.page ? Number(query.page) : 1
+    if (skipNextQueryWatch) {
+      skipNextQueryWatch = false
+      return
+    }
+
+    const incomingSearch = (query.search as string) || undefined
+
+    // ✅ FIX: si llega búsqueda externa (Navbar), limpiar categoria/subcategoria
+    // para que total y sidebar sean coherentes con los resultados
+    if (incomingSearch) {
+      filters.value.categoria    = undefined
+      filters.value.subcategoria = undefined
+    } else {
+      filters.value.categoria    = (query.categoria    as string) || undefined
+      filters.value.subcategoria = (query.subcategoria as string) || undefined
+    }
+
+    filters.value.search  = incomingSearch
+    filters.value.sortBy  = (query.sortBy as ProductFilters['sortBy']) || 'nombre_asc'
+    filters.value.page    = query.page ? Number(query.page) : 1
     filters.value.perPage = 9
+    filters.value.activos = true
 
     await fetchProducts()
   },
   { immediate: true },
 )
 
+// ✅ FIX: un solo onMounted, fetchProducts ya se ejecuta via watch immediate
 onMounted(() => {
   fetchCatalog()
-})
-
-
-onMounted(() => {
-  fetchCatalog()
-  fetchProducts()
 })
 </script>
 
@@ -223,7 +258,7 @@ onMounted(() => {
 
         <!-- Sort -->
         <div class="flex flex-wrap items-center justify-end gap-3 mb-6">
-          <select v-model="filters.sortBy" class="input w-52 text-sm" @change="filters.page = 1">
+          <select v-model="filters.sortBy" class="input w-52 text-sm" @change="filters.page = 1; syncUrlAndFetch()">
             <option v-for="o in sortOptions" :key="o.value" :value="o.value">
               {{ o.label }}
             </option>
@@ -231,7 +266,7 @@ onMounted(() => {
         </div>
 
         <!-- Results count -->
-        <p class="text-xs text-gray-400 mb-4">
+        <p v-if="!loading" class="text-xs text-gray-400 mb-4">
           {{ totalProducts }} producto{{ totalProducts !== 1 ? 's' : '' }} encontrado{{ totalProducts !== 1 ? 's' : '' }}
         </p>
 
@@ -269,7 +304,7 @@ onMounted(() => {
                 ? 'bg-brand text-white'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50',
             ]"
-            @click="filters.page = n"
+            @click="filters.page = n; syncUrlAndFetch()"
           >
             {{ n }}
           </button>

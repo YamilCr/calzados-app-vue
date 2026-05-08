@@ -198,7 +198,8 @@ export const productApi = {
     if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
     if (filters.page)         params.set('page',    String(filters.page))
     if (filters.perPage)      params.set('perPage', String(filters.perPage))
-
+    if (filters.activos !== undefined) params.set('activos', String(filters.activos))
+      
     const sortBy = normalizeSortBy(filters.sortBy)
     if (sortBy) params.set('sortBy', sortBy)
 
