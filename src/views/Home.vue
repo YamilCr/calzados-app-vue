@@ -120,7 +120,7 @@ onMounted(async () => {
 
   <!-- Por qué elegirnos -->
   <section class="max-w-7xl mx-auto px-4 py-14">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center max-w-3xl mx-auto place-items-center">
       <div
         v-for="item in [
           { icon: 'fa-truck',        title: 'Envío gratis',       sub: 'En compras mayores a $500' },
