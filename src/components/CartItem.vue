@@ -31,10 +31,11 @@ const emit = defineEmits<{
       >
         {{ item.product.name }}
       </router-link>
+
       <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
-        <span>Size: {{ item.selectedSize }}</span>
-        <span>·</span>
-        <span class="flex items-center gap-1">
+        <span v-if="item.selectedSize">Size: {{ item.selectedSize }}</span>
+        <span v-if="item.selectedSize && item.selectedColor?.hex">·</span>
+        <span v-if="item.selectedColor?.hex" class="flex items-center gap-1">
           Color:
           <span
             :style="{ background: item.selectedColor.hex }"
