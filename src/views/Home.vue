@@ -124,8 +124,8 @@ onMounted(async () => {
       <div
         v-for="item in [
           { icon: 'fa-truck',        title: 'Envío gratis',       sub: 'En compras mayores a $500' },
-          { icon: 'fa-rotate-left',  title: 'Devoluciones fáciles', sub: 'Hasta 30 días después de la compra' },
-          { icon: 'fa-lock',         title: 'Pago seguro',         sub: 'Checkout 100% seguro' },
+          // { icon: 'fa-rotate-left',  title: 'Devoluciones fáciles', sub: 'Hasta 30 días después de la compra' },
+          // { icon: 'fa-lock',         title: 'Pago seguro',         sub: 'Checkout 100% seguro' },
           { icon: 'fa-headset',      title: 'Soporte 24/7',        sub: 'Siempre disponibles para ayudarte' },
         ]"
         :key="item.title"

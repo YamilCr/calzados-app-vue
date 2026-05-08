@@ -105,8 +105,9 @@ function closeAll() {
           <!-- User -->
           <template v-if="auth.isAuthenticated">
             <div class="hidden sm:flex items-center gap-1">
+              <!-- antes direccionaba a mis pedidos  -->
               <router-link
-                to="/orders"
+                to="#"  
                 class="flex items-center gap-1.5 text-sm font-medium text-brand hover:opacity-75 transition px-1"
               >
                 <i class="fa fa-user-circle text-lg" />
@@ -182,13 +183,13 @@ function closeAll() {
             </router-link>
           </li>
           <li v-if="auth.isAuthenticated">
-            <router-link
+            <!-- <router-link
               to="/orders"
               class="block px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
               @click="mobileOpen = false"
             >
               <i class="fa fa-box mr-2 text-brand" />Mis Pedidos
-            </router-link>
+            </router-link> -->
           </li>
           <li v-if="auth.isAuthenticated">
             <button
