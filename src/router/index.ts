@@ -66,6 +66,12 @@ const router = createRouter({
       meta: { title: 'Admin – Productos', requiresAuth: true },
     },
     {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/Admin/UserCreate.vue'),
+      meta: { title: 'Admin – Usuarios', requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFound.vue'),

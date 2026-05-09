@@ -18,7 +18,7 @@ const navLinks = computed(() => [
   { label: 'Tienda', to: '/shop' },
   { label: 'Nosotros', to: '/about' },
   { label: 'Contacto', to: '/contact' },
-  ...(auth.isAuthenticated ? [{ label: 'Admin', to: '/admin/products' }] : []),
+  ...(auth.isAuthenticated ? [{ label: 'Gestión Productos', to: '/admin/products' },{ label: 'Registrar Usuario', to: '/admin/users' }] : []),
 ])
 
 const isActive = computed(() => (path: string) => {
