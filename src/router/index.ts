@@ -62,7 +62,7 @@ const router = createRouter({
     {
       path: '/admin/products',
       name: 'admin-products',
-      component: () => import('@/views/Admin/Products.vue'),
+      component: () => import('@/views/Admin/ProductsView.vue'),
       meta: { title: 'Admin – Productos', requiresAuth: true },
     },
     {
