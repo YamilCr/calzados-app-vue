@@ -105,9 +105,9 @@ function quickAddToCart() {
           </span>
         </div>
 
-        <span class="text-xs text-gray-400">
+        <!-- <span class="text-xs text-gray-400">
           {{ product.reviewCount }} reseñas
-        </span>
+        </span> -->
       </div>
     </div>
   </div>

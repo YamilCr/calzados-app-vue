@@ -782,11 +782,11 @@ function toggleColor(id: string) {
               </label>
 
               <!-- Botones: derecha -->
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 m-2">
                 <button class="btn-ghost" @click="closeModal">Cancelar</button>
                 <button class="btn-primary" :disabled="saving || isUploading" @click="saveProduct">
-                  <i :class="['fa mr-1.5', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']"></i>
-                  {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto' }}
+                  <!-- <i :class="['fa', (saving || isUploading) ? 'fa-spinner fa-spin' : isEditing ? 'fa-floppy-disk' : 'fa-plus']"></i> -->
+                  {{ isUploading ? 'Subiendo imágenes…' : saving ? 'Guardando' : isEditing ? 'Guardar' : 'Crear' }}
                 </button>
               </div>
             </div>

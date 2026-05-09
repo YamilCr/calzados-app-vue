@@ -88,7 +88,7 @@ function addToCart() {
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 py-10">
+  <div class="max-w-7xl mx-auto px-4 py-10 overflow-x-hidden">
 
     <!-- Breadcrumb -->
     <nav class="text-sm text-gray-400 mb-6 flex items-center gap-2">
@@ -221,26 +221,31 @@ function addToCart() {
           </div>
         </div>
 
-        <!-- Colores -->
-        <div v-if="product.colors.length > 0" class="mb-6">
-          <p class="text-sm font-semibold text-gray-700 mb-2">
-            Color: <span class="text-brand">{{ selectedColor?.name }}</span>
-          </p>
-          <div class="flex gap-2">
-            <button
-              v-for="c in product.colors"
-              :key="c.hex"
-              :title="c.name"
-              :style="{ background: c.hex }"
-              :class="[
-                'w-8 h-8 rounded-full border-2 transition',
-                selectedColor?.hex === c.hex ? 'border-brand scale-110' : 'border-gray-200',
-              ]"
-              @click="selectedColor = c"
-            />
-          </div>
-        </div>
-
+<!-- Colores -->
+<div v-if="product.colors.length > 0" class="mb-5">
+  <p class="text-sm font-semibold text-gray-700 mb-2">
+    Color: <span class="text-brand">{{ selectedColor?.name }}</span>
+  </p>
+  <div class="relative">
+    <div class="m-2 grid-flow-row gap-2 overflow-x-auto pb-1
+                scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <button
+        v-for="color in product.colors"
+        :key="color.name"
+        :title="color.name"
+        :class="[
+          'shrink-0 w-8 h-8 rounded-full border-2 transition-transform m-1',
+          selectedColor?.name === color.name
+            ? 'border-brand scale-110'
+            : 'border-gray-300 hover:border-brand',
+        ]"
+        :style="{ backgroundColor: color.hex }"
+        @click="selectedColor = color"
+      />
+    </div>
+  </div>
+</div>
+            
         <!-- Cantidad + Agregar al carrito -->
         <div class="flex items-center gap-4">
           <div class="flex items-center border border-gray-300 rounded overflow-hidden">
@@ -269,7 +274,7 @@ function addToCart() {
             @click="addToCart"
           >
             <i :class="['fa mr-2', addedToCart ? 'fa-check' : 'fa-cart-plus']" />
-            {{ addedToCart ? '¡Agregado!' : product.inStock ? 'Agregar al carrito' : 'Sin stock' }}
+            {{ addedToCart ? '¡Agregado!' : product.inStock ? 'Agregar' : 'Sin stock' }}
           </button>
 
           <router-link to="/cart" class="btn-outline py-3 px-4">

@@ -127,7 +127,7 @@ function subscribe() {
         </ul>
 
         <!-- Suscripción -->
-        <div class="flex items-center gap-2">
+        <!-- <div class="flex items-center gap-2">
           <input
             v-model="email"
             type="email"
@@ -142,7 +142,7 @@ function subscribe() {
           >
             {{ subscribed ? '✓ ¡Listo!' : 'Suscribirse' }}
           </button>
-        </div>
+        </div> -->
       </div>
     </div>
 
