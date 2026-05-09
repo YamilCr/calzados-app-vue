@@ -10,10 +10,19 @@ const submitting = ref(false)
 async function submit() {
   submitting.value = true
   await new Promise((r) => setTimeout(r, 800)) // mock delay
-  show('¡Mensaje enviado! Te respondemos en menos de 24hs.', 'success')
-  Object.assign(form, { name: '', email: '', subject: '', message: '' })
+
+  const mensaje = encodeURIComponent(
+    `Mensaje: ${form.message}\n\nEnviado desde el formulario de contacto de la web.`,
+  )
+
+  const numero = '5492975381382' // número destino
+  window.open(`https://wa.me/${numero}?text=${mensaje}`, '_blank')
+
+  show('¡Mensaje enviado por WhatsApp!', 'success')
+  Object.assign(form, {message: '' })
   submitting.value = false
 }
+
 </script>
 
 <template>
@@ -32,10 +41,10 @@ async function submit() {
         <div class="space-y-6">
           <div
             v-for="item in [
-              { icon: 'fa-map-marker-alt', title: 'Dirección', text: '123 Consectetur at ligula, 10660' },
-              { icon: 'fa-phone',          title: 'Teléfono',  text: '010-020-0340' },
-              { icon: 'fa-envelope',       title: 'Email',     text: 'info@zayshop.com' },
-              { icon: 'fa-clock',          title: 'Horario',   text: 'Lun–Vie 9hs – 18hs' },
+              { icon: 'fa-map-marker-alt', title: 'Dirección', text: '885 Belgrano, Comodoro Rivadavia' },
+              { icon: 'fa-phone',          title: 'Teléfono',  text: '+54 9 297 538-1382' },
+              { icon: 'fa-envelope',       title: 'Email',     text: 'elviscabj-1223@hotmail.com' },
+              { icon: 'fa-clock',          title: 'Horario',   text:  'Lun–Vie 9hs – 21hs -- Sáb 9hs – 13hs'  },
             ]" :key="item.title"
             class="flex gap-4 items-start"
           >
@@ -53,7 +62,7 @@ async function submit() {
       <!-- Formulario de contacto -->
       <div class="bg-white rounded-xl shadow-sm p-8">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
+          <!-- <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
             <input v-model="form.name" class="input" placeholder="Tu nombre" />
           </div>
@@ -64,7 +73,7 @@ async function submit() {
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
             <input v-model="form.subject" class="input" placeholder="¿De qué se trata?" />
-          </div>
+          </div> -->
           <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Mensaje *</label>
             <textarea
@@ -76,7 +85,7 @@ async function submit() {
           </div>
         </div>
         <button
-          :disabled="submitting || !form.name || !form.email || !form.message"
+          :disabled="submitting || !form.message"
           class="btn-primary w-full mt-5 py-3 text-base"
           @click="submit"
         >

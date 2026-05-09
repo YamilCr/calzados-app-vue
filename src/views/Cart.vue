@@ -42,7 +42,7 @@ const whatsappUrl = computed(() =>
         <div class="bg-white rounded-lg shadow-sm p-6">
           <CartItemComponent
             v-for="(item, i) in cart.items"
-            :key="`${item.product.id}-${item.selectedSize}-${item.selectedColor.hex}`"
+            :key="`${item.product.id}-${item.selectedSize}-${item.selectedColor?.hex ?? 'nc'}`"
             :item="item"
             :index="i"
             @remove="cart.remove"

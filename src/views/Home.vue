@@ -1,12 +1,39 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import HeroCarousel from '@/components/HeroCarousel.vue'
+import TheHero from '@/components/TheHero.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { productApi, catalogApi } from '@/api/client'
 import type { Product, Categoria } from '@/api/client'
 
+// ─── Categorías estáticas ────────────────────────────────────────────────────
+interface StaticCategoria {
+  nombre: string   // valor que se pasa como query param al shop
+  label: string    // texto visible en la tarjeta
+  imagen: string   // URL pública o ruta de /assets
+}
+
+const STATIC_CATEGORIAS: StaticCategoria[] = [
+{
+  nombre: 'Tecnologia',
+  label: 'Tecnología',
+  imagen: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80',
+},
+{
+  nombre: 'Calzados',
+  label: 'Calzados',
+  imagen: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80',
+},
+{
+  nombre: 'Indumentaria',
+  label: 'Indumentaria',
+  imagen: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&q=80',
+},
+]
+
+// ────────────────────────────────────────────────────────────────────────────
+
 const featured   = ref<Product[]>([])
-const categorias = ref<Categoria[]>([])
+const categorias = ref<StaticCategoria[]>([])
 const loading    = ref(true)
 
 onMounted(async () => {
@@ -15,11 +42,16 @@ onMounted(async () => {
       productApi.getFeatured(),
       catalogApi.listCategorias(),
     ])
-    featured.value   = feat
-    // Mostrar solo las primeras 3 categorías que tengan nombre
-    categorias.value = cats.slice(0, 3)
+    featured.value = feat
+
+    // Tomamos solo las categorías estáticas cuyos nombres existen en el backend.
+    
+    categorias.value = STATIC_CATEGORIAS
+
   } catch (e) {
     console.error('Error cargando home:', e)
+    // Igual mostramos las categorías estáticas aunque falle la API
+    categorias.value = STATIC_CATEGORIAS
   } finally {
     loading.value = false
   }
@@ -28,9 +60,9 @@ onMounted(async () => {
 
 <template>
   <!-- Hero Carousel -->
-  <HeroCarousel />
+  <TheHero />
 
-  <!-- Categorías del mes -->
+  <!-- Categorías del Mes -->
   <section class="max-w-7xl mx-auto px-4 py-14">
     <div class="text-center mb-10">
       <h2 class="text-3xl font-bold text-gray-800">Categorías del Mes</h2>
@@ -39,7 +71,7 @@ onMounted(async () => {
       </p>
     </div>
 
-    <!-- Skeleton categorías -->
+    <!-- Skeleton -->
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-3 gap-8">
       <div v-for="n in 3" :key="n" class="flex flex-col items-center gap-3 animate-pulse">
         <div class="w-40 h-40 rounded-full bg-gray-200" />
@@ -51,24 +83,21 @@ onMounted(async () => {
     <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-8">
       <div
         v-for="cat in categorias"
-        :key="cat.id"
+        :key="cat.nombre"
         class="flex flex-col items-center text-center group"
       >
-        <router-link
-          :to="{ path: '/shop', query: { categoria: cat.nombre } }"
-          class="block"
-        >
-          <!--
-            El backend no almacena imagen de categoría actualmente.
-            Se muestra un ícono placeholder. Si en el futuro se agrega
-            una columna `imagen` a la tabla categorias, reemplazar con:
-            <img :src="cat.imagen" ... />
-          -->
-          <div class="w-40 h-40 rounded-full bg-brand/10 border-4 border-gray-200 group-hover:border-brand transition-all duration-300 shadow flex items-center justify-center">
-            <i class="fa fa-tag text-brand text-4xl" />
+        <router-link :to="{ path: '/shop', query: { categoria: cat.nombre } }" class="block">
+          <div class="w-40 h-40 rounded-full overflow-hidden border-4 border-gray-200 group-hover:border-brand transition-all duration-300 shadow">
+            <img
+              :src="cat.imagen"
+              :alt="cat.label"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
           </div>
         </router-link>
-        <h3 class="mt-4 font-semibold text-lg text-gray-800">{{ cat.nombre }}</h3>
+
+        <h3 class="mt-4 font-semibold text-lg text-gray-800">{{ cat.label }}</h3>
+
         <router-link
           :to="{ path: '/shop', query: { categoria: cat.nombre } }"
           class="btn-primary mt-3 text-sm px-6 py-2"
@@ -79,7 +108,7 @@ onMounted(async () => {
     </div>
   </section>
 
-  <!-- Productos destacados -->
+  <!-- Productos Destacados -->
   <section class="bg-gray-50 py-14">
     <div class="max-w-7xl mx-auto px-4">
       <div class="text-center mb-10">
@@ -89,7 +118,7 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Skeleton productos -->
+      <!-- Skeleton -->
       <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         <div v-for="n in 3" :key="n" class="bg-white rounded shadow-sm animate-pulse">
           <div class="h-52 bg-gray-200 rounded-t" />
@@ -120,13 +149,11 @@ onMounted(async () => {
 
   <!-- Por qué elegirnos -->
   <section class="max-w-7xl mx-auto px-4 py-14">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center max-w-3xl mx-auto place-items-center">
       <div
         v-for="item in [
-          { icon: 'fa-truck',        title: 'Envío gratis',       sub: 'En compras mayores a $500' },
-          { icon: 'fa-rotate-left',  title: 'Devoluciones fáciles', sub: 'Hasta 30 días después de la compra' },
-          { icon: 'fa-lock',         title: 'Pago seguro',         sub: 'Checkout 100% seguro' },
-          { icon: 'fa-headset',      title: 'Soporte 24/7',        sub: 'Siempre disponibles para ayudarte' },
+          { icon: 'fa-truck',   title: 'Envío gratis',  sub: 'En compras mayores a $500' },
+          { icon: 'fa-headset', title: 'Soporte 24/7',  sub: 'Siempre disponibles para ayudarte' },
         ]"
         :key="item.title"
       >

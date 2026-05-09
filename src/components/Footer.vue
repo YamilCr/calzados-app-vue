@@ -21,32 +21,32 @@ function subscribe() {
         <!-- Marca -->
         <div>
           <h2 class="text-brand text-xl font-bold border-b border-gray-600 pb-3 mb-4">
-            Zay Shop
+            Calzados CR
           </h2>
 
           <ul class="space-y-2 text-sm">
             <li class="flex items-start gap-2">
               <i class="fa fa-map-marker-alt mt-0.5 w-4 shrink-0" />
-              <span>123 Consectetur at ligula, 10660</span>
+              <span>Belgrano, 855</span>
             </li>
 
             <li>
               <a
-                href="tel:010-020-0340"
+                href="tel:+5492975381382"
                 class="flex items-center gap-2 hover:text-white transition"
               >
                 <i class="fa fa-phone w-4" />
-                010-020-0340
+                +54 9 2975381382
               </a>
             </li>
 
             <li>
               <a
-                href="mailto:info@zayshop.com"
+                href="mailto:elviscabj-1223@hotmai.com"
                 class="flex items-center gap-2 hover:text-white transition"
               >
                 <i class="fa fa-envelope w-4" />
-                info@zayshop.com
+                elviscabj-1223@hotmai.com
               </a>
             </li>
           </ul>
@@ -59,9 +59,8 @@ function subscribe() {
           </h3>
 
           <ul class="space-y-2 text-sm">
-            <!--
             <li
-              v-for="item in ['Lujo', 'Ropa Deportiva', 'Zapatos Hombre', 'Zapatos Mujer', 'Accesorios Gym', 'Zapatillas Deportivas']"
+              v-for="item in ['Calzado', 'Indumentaria', 'Hogar', 'Tecnologia']"
               :key="item"
             >
               <router-link
@@ -71,7 +70,6 @@ function subscribe() {
                 {{ item }}
               </router-link>
             </li>
-            -->
           </ul>
         </div>
 
@@ -112,10 +110,9 @@ function subscribe() {
         <ul class="flex items-center gap-3">
           <li
             v-for="{ icon, href } in [
-              { icon: 'fab fa-facebook-f', href: '#' },
-              { icon: 'fab fa-instagram', href: '#' },
-              { icon: 'fab fa-twitter', href: '#' },
-              { icon: 'fab fa-linkedin-in', href: '#' },
+              { icon: 'fab fa-facebook-f', href: 'https://www.facebook.com/share/1GRk7LwN9Y/' },
+              { icon: 'fab fa-instagram', href: 'https://www.instagram.com/calzados_cr_ea?igsh=eWlxaXZ2NDN6MDMx' },
+              { icon: 'fab fa-tiktok', href: 'https://www.tiktok.com/@calzadoscr?_r=1&_t=ZS-96CMkDdMMCq' },
             ]"
             :key="icon"
           >
@@ -130,7 +127,7 @@ function subscribe() {
         </ul>
 
         <!-- Suscripción -->
-        <div class="flex items-center gap-2">
+        <!-- <div class="flex items-center gap-2">
           <input
             v-model="email"
             type="email"
@@ -145,13 +142,13 @@ function subscribe() {
           >
             {{ subscribed ? '✓ ¡Listo!' : 'Suscribirse' }}
           </button>
-        </div>
+        </div> -->
       </div>
     </div>
 
     <!-- Copyright -->
     <div class="bg-black py-3 text-center text-xs text-gray-500">
-      &copy; {{ new Date().getFullYear() }} Zay Shop. Todos los derechos reservados.
+      &copy; {{ new Date().getFullYear() }} Calzados CR. Todos los derechos reservados.
     </div>
   </footer>
 </template>

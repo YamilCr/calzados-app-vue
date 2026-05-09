@@ -71,6 +71,8 @@ export interface Product {
   description: string
   featured: boolean
   inStock: boolean
+  destacado: boolean
+  inCarrusel: boolean
   slug: string
   /** rating y reviewCount no existen en el backend; se dejan opcionales para compatibilidad */
   rating?: number
@@ -86,6 +88,7 @@ export interface ProductFilters {
   sortBy?: 'precio_asc' | 'precio_desc' | 'nombre_asc' | 'destacado' | 'featured' | 'price_asc' | 'price_desc' | 'name_asc' | 'rating'
   minPrice?: number
   maxPrice?: number
+  activos?: boolean
   page?: number
   perPage?: number
 }
@@ -100,6 +103,7 @@ export interface ProductPayload {
   subcategoria_id?: string | null
   activo?: boolean
   destacado?: boolean
+  en_carrusel?: boolean
   imagenesUrls?: string[]
   talles?: string[]
   variantes?: Array<{ talle?: string; color_id?: string }>
@@ -194,7 +198,8 @@ export const productApi = {
     if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
     if (filters.page)         params.set('page',    String(filters.page))
     if (filters.perPage)      params.set('perPage', String(filters.perPage))
-
+    if (filters.activos !== undefined) params.set('activos', String(filters.activos))
+      
     const sortBy = normalizeSortBy(filters.sortBy)
     if (sortBy) params.set('sortBy', sortBy)
 
@@ -209,6 +214,12 @@ export const productApi = {
       perPage:    res.perPage,
       totalPages: res.totalPages,
     }
+  },
+
+  /** GET /v1/products/carrusel */
+  async getCarrusel(): Promise<Product[]> {
+    const res = await http<ApiResponse<Product[]>>('/products/carrusel')
+    return res.data
   },
 
   /** GET /v1/products/destacados */

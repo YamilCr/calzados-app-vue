@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
+import Logo from '@/components/Logo.vue'
 
 const router = useRouter()
 const cart = useCartStore()
@@ -12,20 +13,12 @@ const mobileOpen = ref(false)
 const searchOpen = ref(false)
 const searchQuery = ref('')
 
-/*const navLinks = [
-  { label: 'Inicio', to: '/' },
-  { label: 'Tienda', to: '/shop' },
-  { label: 'Nosotros', to: '/about' },
-  { label: 'Contacto', to: '/contact' },
-  { label: 'Administrador', to: '/admin/products' },
-]*/
-
 const navLinks = computed(() => [
   { label: 'Inicio', to: '/' },
   { label: 'Tienda', to: '/shop' },
   { label: 'Nosotros', to: '/about' },
   { label: 'Contacto', to: '/contact' },
-  ...(auth.isAuthenticated ? [{ label: 'Admin', to: '/admin/products' }] : []),
+  ...(auth.isAuthenticated ? [{ label: 'Gestión Productos', to: '/admin/products' },{ label: 'Registrar Usuario', to: '/admin/users' }] : []),
 ])
 
 const isActive = computed(() => (path: string) => {
@@ -34,10 +27,15 @@ const isActive = computed(() => (path: string) => {
 })
 
 function handleSearch() {
-  if (!searchQuery.value.trim()) return
-  router.push({ path: '/shop', query: { search: searchQuery.value.trim() } })
+  const q = searchQuery.value.trim()
+  if (!q) return
+
+  // ✅ FIX: query limpia — no arrastrar categoria/subcategoria previas de /shop
+  router.push({ path: '/shop', query: { search: q } })
+
   searchQuery.value = ''
   searchOpen.value = false
+  mobileOpen.value = false
 }
 
 function closeAll() {
@@ -53,7 +51,7 @@ function closeAll() {
 
         <!-- Logo -->
         <router-link to="/" class="text-2xl font-bold text-brand" @click="closeAll">
-          Zay
+          <Logo />
         </router-link>
 
         <!-- Desktop nav links -->
@@ -101,7 +99,7 @@ function closeAll() {
           <template v-if="auth.isAuthenticated">
             <div class="hidden sm:flex items-center gap-1">
               <router-link
-                to="/orders"
+                to="#"
                 class="flex items-center gap-1.5 text-sm font-medium text-brand hover:opacity-75 transition px-1"
               >
                 <i class="fa fa-user-circle text-lg" />
@@ -177,13 +175,13 @@ function closeAll() {
             </router-link>
           </li>
           <li v-if="auth.isAuthenticated">
-            <router-link
+            <!-- <router-link
               to="/orders"
               class="block px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
               @click="mobileOpen = false"
             >
               <i class="fa fa-box mr-2 text-brand" />Mis Pedidos
-            </router-link>
+            </router-link> -->
           </li>
           <li v-if="auth.isAuthenticated">
             <button
@@ -211,9 +209,9 @@ function closeAll() {
             type="text"
             placeholder="Search..."
             class="input flex-1 text-sm"
-            @keyup.enter="handleSearch; mobileOpen = false"
+            @keyup.enter="handleSearch(); mobileOpen = false"
           />
-          <button class="btn-primary px-3" @click="handleSearch; mobileOpen = false">
+          <button class="btn-primary px-3" @click="handleSearch(); mobileOpen = false">
             <i class="fa fa-search" />
           </button>
         </div>
