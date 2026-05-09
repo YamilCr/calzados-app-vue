@@ -101,105 +101,164 @@ const saveLabel = computed(() => {
                 <span class="text-gray-400 font-normal">(hasta {{ maxExtra }} adicionales)</span>
               </label>
 
-              <div class="flex gap-3">
+              <div class="space-y-4">
 
-                <!-- Imagen principal -->
-                <div class="flex-shrink-0 w-48">
-                  <label
-                    class="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
-                    :class="imagePreview ? 'border-brand/40 bg-brand/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'"
+              <!-- Imagen principal -->
+              <div class="w-full">
+                <label
+                  class="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-2xl cursor-pointer transition overflow-hidden"
+                  :class="
+                    imagePreview
+                      ? 'border-brand/40 bg-brand/5'
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                  "
+                >
+                  <img
+                    v-if="imagePreview"
+                    :src="imagePreview"
+                    alt="preview principal"
+                    class="absolute inset-0 w-full h-full object-contain p-3"
+                  />
+
+                  <div
+                    v-if="imagePreview"
+                    class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-2"
                   >
-                    <img
-                      v-if="imagePreview"
-                      :src="imagePreview"
-                      alt="preview principal"
-                      class="absolute inset-0 w-full h-full object-contain p-2"
-                    />
-                    <div
-                      v-if="imagePreview"
-                      class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-1.5"
-                    >
-                      <i class="fa fa-camera text-white text-xl"></i>
-                      <span class="text-white text-xs font-medium">Cambiar</span>
-                    </div>
-                    <div v-if="!imagePreview" class="flex flex-col items-center gap-2 text-gray-400 pointer-events-none">
-                      <i class="fa fa-cloud-arrow-up text-3xl"></i>
-                      <span class="text-xs text-center leading-snug">Imagen principal<br/>JPG · PNG · WEBP</span>
-                    </div>
-                    <input type="file" accept="image/*" class="hidden" @change="$emit('imageChange', $event)" />
-                  </label>
-
-                  <!-- Barra de progreso principal -->
-                  <div v-if="uploading" class="mt-1.5">
-                    <div class="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Subiendo…</span><span>{{ uploadProgress }}%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5">
-                      <div
-                        class="bg-brand h-1.5 rounded-full transition-all"
-                        :style="{ width: uploadProgress + '%' }"
-                      ></div>
-                    </div>
+                    <i class="fa fa-camera text-white text-2xl"></i>
+                    <span class="text-white text-sm font-medium">Cambiar imagen</span>
                   </div>
 
-                  <button
-                    v-if="imagePreview && !uploading"
-                    type="button"
-                    class="mt-1.5 text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
-                    @click="$emit('imageClear')"
+                  <div
+                    v-if="!imagePreview"
+                    class="flex flex-col items-center gap-3 text-gray-400 pointer-events-none"
                   >
-                    <i class="fa fa-xmark"></i> Quitar imagen
-                  </button>
+                    <i class="fa fa-cloud-arrow-up text-5xl"></i>
+                    <span class="text-sm text-center">
+                      Imagen principal<br />
+                      JPG · PNG · WEBP
+                    </span>
+                  </div>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="$emit('imageChange', $event)"
+                  />
+                </label>
+
+                <!-- Progress principal -->
+                <div v-if="uploading" class="mt-2">
+                  <div class="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Subiendo…</span>
+                    <span>{{ uploadProgress }}%</span>
+                  </div>
+
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      class="bg-brand h-2 rounded-full transition-all"
+                      :style="{ width: uploadProgress + '%' }"
+                    ></div>
+                  </div>
                 </div>
 
-                <!-- Imágenes adicionales -->
-                <div class="flex-1 grid grid-cols-2 gap-2 content-start">
-                  <div v-for="(slot, idx) in extraImages" :key="idx" class="relative">
+                <button
+                  v-if="imagePreview && !uploading"
+                  type="button"
+                  class="mt-2 text-sm text-red-500 hover:text-red-700 flex items-center gap-1"
+                  @click="$emit('imageClear')"
+                >
+                  <i class="fa fa-xmark"></i>
+                  Quitar imagen
+                </button>
+              </div>
+
+              <!-- Extras -->
+              <div class="relative">
+
+                <!-- Fade izquierda -->
+                <div class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+
+                <!-- Fade derecha -->
+                <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+
+                <!-- Scroll -->
+                <div
+                  class="flex gap-3 overflow-x-auto pb-3 px-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100"
+                >
+                  <div
+                    v-for="(slot, idx) in extraImages"
+                    :key="idx"
+                    class="relative flex-shrink-0 snap-start"
+                  >
                     <label
-                      class="relative flex flex-col items-center justify-center w-full h-[90px] border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
-                      :class="slot.preview ? 'border-brand/40 bg-brand/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'"
+                      class="relative flex flex-col items-center justify-center w-28 h-28 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden"
+                      :class="
+                        slot.preview
+                          ? 'border-brand/40 bg-brand/5'
+                          : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                      "
                     >
                       <img
                         v-if="slot.preview"
                         :src="slot.preview"
                         alt="imagen adicional"
-                        class="absolute inset-0 w-full h-full object-contain p-1"
+                        class="absolute inset-0 w-full h-full object-cover"
                       />
+
                       <div
                         v-if="slot.preview"
                         class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center"
                       >
-                        <i class="fa fa-camera text-white text-base"></i>
+                        <i class="fa fa-camera text-white"></i>
                       </div>
-                      <div v-if="!slot.preview" class="flex flex-col items-center gap-1 text-gray-400 pointer-events-none">
-                        <i class="fa fa-plus text-lg"></i>
-                        <span class="text-[10px]">Agregar foto</span>
+
+                      <div
+                        v-if="!slot.preview"
+                        class="flex flex-col items-center gap-1 text-gray-400 pointer-events-none"
+                      >
+                        <i class="fa fa-plus text-xl"></i>
+                        <span class="text-[11px]">Agregar</span>
                       </div>
-                      <input type="file" accept="image/*" class="hidden" @change="$emit('extraChange', $event, idx)" />
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        @change="$emit('extraChange', $event, idx)"
+                      />
                     </label>
 
-                    <!-- Barra de progreso extra -->
-                    <div v-if="slot.uploading" class="mt-0.5">
-                      <div class="w-full bg-gray-200 rounded-full h-1">
+                    <!-- Progress -->
+                    <div v-if="slot.uploading" class="mt-1">
+                      <div class="w-full bg-gray-200 rounded-full h-1.5">
                         <div
-                          class="bg-brand h-1 rounded-full transition-all"
+                          class="bg-brand h-1.5 rounded-full transition-all"
                           :style="{ width: slot.progress + '%' }"
                         ></div>
                       </div>
                     </div>
 
+                    <!-- Delete -->
                     <button
                       v-if="slot.preview && !slot.uploading"
                       type="button"
-                      class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-sm z-10"
+                      class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-md z-20"
                       @click.prevent="$emit('extraClear', idx)"
                     >
-                      <i class="fa fa-xmark text-[10px]"></i>
+                      <i class="fa fa-xmark text-xs"></i>
                     </button>
                   </div>
                 </div>
 
+                <!-- Hint -->
+                <p class="text-xs text-gray-400 mt-1 px-1">
+                  Deslizá horizontalmente para ver más imágenes
+                </p>
+
               </div>
+
+            </div>
             </div>
 
             <!-- ── Nombre ──────────────────────────────────────────────── -->
