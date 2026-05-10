@@ -20,7 +20,7 @@
         <div class="flex-1">
           <img
             src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop"
-            alt="Sobre Zay Shop"
+            alt="Sobre Calzados CR"
             class="rounded-xl shadow-lg w-full"
           />
         </div>

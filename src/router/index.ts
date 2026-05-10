@@ -82,7 +82,7 @@ const router = createRouter({
 // ─── Auth guard ───────────────────────────────────────────────────────────────
 router.beforeEach((to) => {
   // Update document title
-  document.title = `${to.meta.title ?? 'Page'} | Zay Shop`
+  document.title = `${to.meta.title ?? 'Page'} | Calzados CR`
 
   const auth = useAuthStore()
 
