@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { productApi } from '@/api/client'
 import type { Product } from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useProductForm } from '@/composables/useProductForm'
-
 import ProductsTable    from '@/components/admin/products/ProductsTable.vue'
 import ProductFormModal from '@/components/admin/products/ProductFormModal.vue'
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const toast = useToast()
-const toastSuccess = (msg: string) => (toast as any).success?.(msg) ?? (toast as any).show?.(msg, 'success')
-const toastError   = (msg: string) => (toast as any).error?.(msg)   ?? (toast as any).show?.(msg, 'error')
+const toastSuccess = (msg: string) => toast.show(msg, 'success')
+const toastError   = (msg: string) => toast.show(msg, 'error')
 
 // ─── Form composable ──────────────────────────────────────────────────────────
 const form = useProductForm()
@@ -26,6 +25,7 @@ const perPage     = 8
 const search          = ref('')
 const categoriaFilter = ref('')
 const stockFilter     = ref<'all' | 'active' | 'inactive'>('all')
+const displayFilter   = ref<'all' | 'featured' | 'carousel'>('all')
 const sortField       = ref<'name' | 'price' | 'category'>('name')
 const sortDir         = ref<'asc' | 'desc'>('asc')
 
@@ -35,6 +35,32 @@ const isEditing  = ref(false)
 const editingId  = ref<string | null>(null)
 const saving     = ref(false)
 
+const PRODUCT_FLAG_LIMIT = 10
+
+const editingProduct = computed(() =>
+  editingId.value
+    ? products.value.find((product) => product.id === editingId.value) ?? null
+    : null
+)
+
+const featuredCount = computed(() =>
+  products.value.filter((product) => product.destacado ?? product.featured).length
+)
+
+const carouselCount = computed(() =>
+  products.value.filter((product) => product.inCarrusel).length
+)
+
+const canSelectFeatured = computed(() =>
+  Boolean(editingProduct.value?.destacado ?? editingProduct.value?.featured) ||
+  featuredCount.value < PRODUCT_FLAG_LIMIT
+)
+
+const canSelectCarousel = computed(() =>
+  Boolean(editingProduct.value?.inCarrusel) ||
+  carouselCount.value < PRODUCT_FLAG_LIMIT
+)
+
 // ─── Toggling stock ───────────────────────────────────────────────────────────
 const togglingIds = ref<Set<string>>(new Set())
 
@@ -42,12 +68,23 @@ const togglingIds = ref<Set<string>>(new Set())
 async function loadAll() {
   loading.value = true
   try {
-    const [prodRes] = await Promise.all([
+    const [firstPage] = await Promise.all([
       productApi.list({ perPage: 200, page: 1 }),
       form.loadCatalog(),
     ])
-    products.value = prodRes.data
-    total.value    = prodRes.total
+
+    const remainingPages = await Promise.all(
+      Array.from(
+        { length: Math.max(0, firstPage.totalPages - 1) },
+        (_, index) => productApi.list({ perPage: firstPage.perPage, page: index + 2 }),
+      ),
+    )
+
+    products.value = [
+      ...firstPage.data,
+      ...remainingPages.flatMap((page) => page.data),
+    ]
+    total.value = products.value.length
   } catch (e) {
     toastError(e instanceof Error ? e.message : 'Error al cargar.')
   } finally {
@@ -57,9 +94,19 @@ async function loadAll() {
 onMounted(loadAll)
 
 // ─── Sort handler ─────────────────────────────────────────────────────────────
-function handleSort(field: typeof sortField.value) {
-  if (sortField.value === field) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
-  else { sortField.value = field; sortDir.value = 'asc' }
+function handleSort(field: typeof sortField.value, direction?: typeof sortDir.value) {
+  if (direction) {
+    sortField.value = field
+    sortDir.value = direction
+    return
+  }
+
+  if (sortField.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDir.value = 'asc'
+  }
 }
 
 // ─── Modal open/close ─────────────────────────────────────────────────────────
@@ -81,12 +128,35 @@ function closeModal() { modalOpen.value = false }
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
 async function saveProduct() {
-  if (!form.validate()) return
+  if (!form.validate()) {
+    toastError('Revisá los campos obligatorios antes de crear el producto.')
+    return
+  }
+
+  const currentWasFeatured = Boolean(
+    editingProduct.value?.destacado ?? editingProduct.value?.featured
+  )
+  const currentWasInCarousel = Boolean(editingProduct.value?.inCarrusel)
+  const featuredWithoutCurrent = featuredCount.value - (currentWasFeatured ? 1 : 0)
+  const carouselWithoutCurrent = carouselCount.value - (currentWasInCarousel ? 1 : 0)
+
+  if (form.fDestacado.value && featuredWithoutCurrent >= PRODUCT_FLAG_LIMIT) {
+    toastError(`Solo puede haber ${PRODUCT_FLAG_LIMIT} productos destacados.`)
+    return
+  }
+
+  if (form.fEnCarrusel.value && carouselWithoutCurrent >= PRODUCT_FLAG_LIMIT) {
+    toastError(`Solo puede haber ${PRODUCT_FLAG_LIMIT} productos en el carrusel.`)
+    return
+  }
+
   saving.value = true
   try {
     if (form.imageFile.value) {
       form.fImagenPrincipal.value =
-      await form.uploadMainImage(form.imageFile.value)
+        await form.uploadMainImage(form.imageFile.value)
+      form.imageFile.value = null
+      form.imagePreview.value = form.fImagenPrincipal.value
     }
     // SI BORRÓ LA IMAGEN PRINCIPAL
     if (!form.imagePreview.value) {
@@ -107,6 +177,7 @@ async function saveProduct() {
     closeModal()
     await loadAll()
   } catch (e) {
+    console.error('Error al guardar producto:', e)
     toastError(e instanceof Error ? e.message : 'Error al guardar.')
   } finally {
     saving.value = false
@@ -123,17 +194,7 @@ async function toggleStock(product: Product) {
   togglingIds.value = new Set([...togglingIds.value, product.id])
 
   try {
-    await productApi.update(product.id, {
-      codigo:          product.codigo,
-      nombre:          product.name,
-      descripcion:     product.description || undefined,
-      precio:          product.price,
-      precio_anterior: product.originalPrice ?? null,
-      subcategoria_id: null,
-      activo:          !product.inStock,
-      destacado:       product.featured,
-      en_carrusel:     product.inCarrusel,
-    })
+    await productApi.update(product.id, { activo: !product.inStock })
     toastSuccess(product.inStock ? `"${product.name}" desactivado.` : `"${product.name}" activado.`)
   } catch (e) {
     if (idx !== -1) products.value[idx] = { ...products.value[idx], inStock: product.inStock }
@@ -158,6 +219,7 @@ async function toggleStock(product: Product) {
       :search="search"
       :categoria-filter="categoriaFilter"
       :stock-filter="stockFilter"
+      :display-filter="displayFilter"
       :sort-field="sortField"
       :sort-dir="sortDir"
       :current-page="currentPage"
@@ -166,6 +228,7 @@ async function toggleStock(product: Product) {
       @update:search="search = $event"
       @update:categoria-filter="categoriaFilter = $event"
       @update:stock-filter="stockFilter = $event"
+      @update:display-filter="displayFilter = $event"
       @update:current-page="currentPage = $event"
       @sort="handleSort"
       @edit="openEdit"
@@ -203,6 +266,11 @@ async function toggleStock(product: Product) {
       :colores="form.colores.value"
       :categorias-unicas="form.categoriasUnicas.value"
       :form-errors="form.formErrors.value"
+      :can-select-featured="canSelectFeatured"
+      :can-select-carousel="canSelectCarousel"
+      :flag-limit="PRODUCT_FLAG_LIMIT"
+      :featured-count="featuredCount"
+      :carousel-count="carouselCount"
 
       @update:f-nombre="form.fNombre.value = $event"
       @update:f-codigo="form.fCodigo.value = $event"

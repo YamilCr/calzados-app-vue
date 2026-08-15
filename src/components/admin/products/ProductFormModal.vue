@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import type { Subcategoria, Color } from '@/api/client'
 import type { ExtraImage } from '@/composables/useProductForm'
 
+  
+  
 const props = defineProps<{
   open: boolean
   isEditing: boolean
@@ -38,6 +40,13 @@ const props = defineProps<{
 
   // Errors
   formErrors: Record<string, string>
+
+  // Featured / carousel limits
+  canSelectFeatured: boolean
+  canSelectCarousel: boolean
+  flagLimit: number
+  featuredCount: number
+  carouselCount: number
 }>()
 
 const emit = defineEmits<{
@@ -65,6 +74,31 @@ const saveLabel = computed(() => {
   if (props.saving) return 'Guardando…'
   return props.isEditing ? 'Guardar' : 'Crear'
 })
+
+function handleSaveClick() {
+  if (props.saving || props.isUploading) return
+  emit('save')
+}
+
+function normalizeHexColor(value?: string | null) {
+  const color = value?.trim() ?? ''
+
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color
+
+  if (/^#[0-9a-f]{3}$/i.test(color)) {
+    const [, r, g, b] = color
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+
+  return '#ffffff'
+}
+
+function colorDotSrc(value?: string | null) {
+  const color = normalizeHexColor(value)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill="${color}"/></svg>`
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
 </script>
 
 <template>
@@ -75,10 +109,14 @@ const saveLabel = computed(() => {
         class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8 px-4"
         @mousedown.self="$emit('close')"
       >
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+        <div
+          class="product-form-modal bg-white rounded-2xl shadow-xl w-full max-w-2xl"
+          data-darkreader-ignore
+          style="background: #ffffff; color: #111827;"
+        >
 
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div class="modal-light-surface flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h2 class="text-lg font-bold text-gray-900">
               <i :class="['fa mr-2 text-brand', isEditing ? 'fa-pen-to-square' : 'fa-plus-circle']"></i>
               {{ isEditing ? 'Editar Producto' : 'Nuevo Producto' }}
@@ -92,7 +130,7 @@ const saveLabel = computed(() => {
           </div>
 
           <!-- Body -->
-          <div class="px-6 py-5 space-y-5">
+          <div class="modal-light-surface px-6 py-5 space-y-5">
 
             <!-- ── Imágenes (principal + adicionales juntas) ─────────── -->
             <div>
@@ -385,11 +423,13 @@ const saveLabel = computed(() => {
                   ]"
                   @click="$emit('toggleColor', color.id)"
                 >
-                  <span
+                  <img
                     v-if="color.codigo_hex"
-                    class="w-3 h-3 rounded-full border border-gray-300 shrink-0"
-                    :style="{ backgroundColor: color.codigo_hex }"
-                  ></span>
+                    :src="colorDotSrc(color.codigo_hex)"
+                    alt=""
+                    aria-hidden="true"
+                    class="color-dot shrink-0"
+                  />
                   {{ color.nombre }}
                   <i v-if="fColorIds.includes(color.id)" class="fa fa-check text-[10px]"></i>
                 </button>
@@ -401,30 +441,50 @@ const saveLabel = computed(() => {
 
             <!-- ── Toggles ─────────────────────────────────────────────── -->
             <div class="flex gap-6">
-              <label class="flex items-center gap-2 cursor-pointer select-none">
+              <label
+                class="flex items-center gap-2 select-none"
+                :class="canSelectFeatured || fDestacado ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+                :title="canSelectFeatured || fDestacado ? '' : `Límite de ${flagLimit} destacados alcanzado`"
+              >
                 <input
                   :checked="fDestacado"
                   type="checkbox"
                   class="w-4 h-4 rounded accent-brand"
+                  :disabled="!canSelectFeatured && !fDestacado"
                   @change="$emit('update:fDestacado', ($event.target as HTMLInputElement).checked)"
                 />
-                <span class="text-sm font-medium text-gray-700">Destacado</span>
+                <span class="text-sm font-medium text-gray-700">
+                  Destacado
+                  <span class="text-xs font-normal text-gray-400">
+                    ({{ featuredCount }}/{{ flagLimit }})
+                  </span>
+                </span>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer select-none">
+              <label
+                class="flex items-center gap-2 select-none"
+                :class="canSelectCarousel || fEnCarrusel ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'"
+                :title="canSelectCarousel || fEnCarrusel ? '' : `Límite de ${flagLimit} productos en carrusel alcanzado`"
+              >
                 <input
                   :checked="fEnCarrusel"
                   type="checkbox"
                   class="w-4 h-4 rounded accent-brand"
+                  :disabled="!canSelectCarousel && !fEnCarrusel"
                   @change="$emit('update:fEnCarrusel', ($event.target as HTMLInputElement).checked)"
                 />
-                <span class="text-sm font-medium text-gray-700">Mostrar en carrusel</span>
+                <span class="text-sm font-medium text-gray-700">
+                  Mostrar en carrusel
+                  <span class="text-xs font-normal text-gray-400">
+                    ({{ carouselCount }}/{{ flagLimit }})
+                  </span>
+                </span>
               </label>
             </div>
 
           </div>
 
           <!-- Footer -->
-          <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
+          <div class="modal-light-surface flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
             <label class="flex items-center gap-2 cursor-pointer select-none">
               <input
                 :checked="fActivo"
@@ -439,11 +499,12 @@ const saveLabel = computed(() => {
             </label>
 
             <div class="flex items-center gap-3">
-              <button class="btn-ghost" @click="$emit('close')">Cancelar</button>
+              <button type="button" class="btn-ghost" @click="$emit('close')">Cancelar</button>
               <button
+                type="button"
                 class="btn-primary"
                 :disabled="saving || isUploading"
-                @click="$emit('save')"
+                @click="handleSaveClick"
               >
                 {{ saveLabel }}
               </button>
@@ -459,4 +520,98 @@ const saveLabel = computed(() => {
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.product-form-modal {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: linear-gradient(#ffffff, #ffffff) !important;
+  color: #111827 !important;
+  color-scheme: light;
+  forced-color-adjust: none;
+  box-shadow:
+    inset 0 0 0 9999px #ffffff,
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+}
+
+.product-form-modal,
+.product-form-modal :deep(*) {
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+.modal-light-surface {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: linear-gradient(#ffffff, #ffffff) !important;
+  color: #111827 !important;
+  box-shadow: inset 0 0 0 9999px #ffffff;
+}
+
+.product-form-modal :deep(input:not([type='checkbox']):not([type='radio']):not([type='file'])),
+.product-form-modal :deep(textarea),
+.product-form-modal :deep(select) {
+  background-color: #ffffff !important;
+  background-image: linear-gradient(#ffffff, #ffffff) !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  border-color: #d1d5db !important;
+  color-scheme: light;
+  forced-color-adjust: none;
+  box-shadow: inset 0 0 0 9999px #ffffff !important;
+}
+
+.product-form-modal :deep(input[type='checkbox']),
+.product-form-modal :deep(input[type='radio']) {
+  color-scheme: light;
+  forced-color-adjust: none;
+  box-shadow: none !important;
+  -webkit-text-fill-color: initial !important;
+}
+
+.product-form-modal :deep(option),
+.product-form-modal :deep(optgroup) {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+.product-form-modal :deep(button) {
+  forced-color-adjust: none;
+}
+
+.product-form-modal :deep(label),
+.product-form-modal :deep(span),
+.product-form-modal :deep(p),
+.product-form-modal :deep(h2) {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  forced-color-adjust: none;
+}
+
+.product-form-modal :deep(button:not(.btn-primary):not(.bg-red-500)) {
+  background-image: linear-gradient(#ffffff, #ffffff) !important;
+  box-shadow: inset 0 0 0 9999px #ffffff !important;
+}
+
+.product-form-modal :deep(.bg-gray-50),
+.product-form-modal :deep(.hover\:bg-gray-100),
+.product-form-modal :deep(.bg-brand\/5) {
+  background-color: #f9fafb !important;
+  background-image: linear-gradient(#f9fafb, #f9fafb) !important;
+  box-shadow: inset 0 0 0 9999px #f9fafb !important;
+}
+
+.product-form-modal :deep(.color-dot) {
+  width: 0.75rem;      /* 12px — equivalente a w-3 */
+  height: 0.75rem;     /* 12px — equivalente a h-3 */
+  border-radius: 9999px;
+  border: 1px solid #d1d5db;
+  display: inline-block;
+  flex-shrink: 0;
+  background: transparent !important;
+  forced-color-adjust: none;
+  filter: none !important;
+  object-fit: cover;
+}
 </style>
